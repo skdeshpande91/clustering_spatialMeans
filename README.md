@@ -1,11 +1,19 @@
 ## clustering_spatialMeans
 
 ---
+
 Code for to identify different clusters of average crime level with largest posterior probability.
+
 ---
 
 ## Example
-The code currently runs (see code snippet below).
+The code currently runs (see forthcoming code snippet).
+The repo contains the following:
+
+* scripts: R scripts to generate testing data, plot partitions, and test main functions
+* src: C++ source code 
+
+
 
 ## To-do
 
