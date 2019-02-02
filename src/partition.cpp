@@ -627,7 +627,7 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
     
     for(int nc_ix = 0; nc_ix < num_new_clusters; nc_ix++){ // check to see that all of the k_star's are valid. also find remain_ix
       if(k_star[nc_ix] > 0 & k_star[nc_ix] >= K){
-        //Rcpp::Rcout << "[Split_Merge]: k_star must be between -1 and K-1 (inclusive)" << endl;
+        Rcpp::Rcout << "[Split_Merge]: k_star must be between -1 and K-1 (inclusive)" << endl;
       }
       if(remain_ix == -1 & k_star[nc_ix] == -1){
         remain_ix = nc_ix;

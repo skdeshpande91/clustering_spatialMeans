@@ -1609,7 +1609,7 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
     
     int break_flag = 0;
     
-    std::vector<int> k_star; // holds the indices of
+    std::vector<int> k_star; // holds the indices of nearest neighbors
     int num_new_clusters = 0;
     int split_k = 0;
     

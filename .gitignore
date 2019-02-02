@@ -1,0 +1,8 @@
+*~
+.*~
+.DS_Store
+.Rhistory
+data/*.RData
+images/*.png
+images/
+src/*.o
