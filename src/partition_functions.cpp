@@ -1670,7 +1670,7 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
         break_flag = 1;
       }
       // now we consider a sequence of progressive merges
-/*
+
       if(break_flag == 0){
         for(int nc_ix = 0; nc_ix < num_new_clusters; nc_ix++){
           if(si.nearest_neighbor[split_ix][nc_ix] != -1){
@@ -1678,14 +1678,25 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
             delete tmp_candidate;
             tmp_candidate = new Partition(particle_set[current_l]);
             tmp_candidate->Split_Merge(split_k, si.new_clusters[split_ix], k_star, ybar, T, A_block, rho, a1, a2, eta);
-            tmp_objective = w[current_l]*total_log_post(tmp_candidate, a_sigma, nu_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+            sanity_flag = sanity_check(tmp_candidate);
+            if(sanity_flag == false){
+              Rcpp::Rcout << "[best_split]: something is wrong about this split!" << endl;
+              Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
+              for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
+                Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
+                for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
+                  Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
+                }
+                Rcpp::Rcout << endl;
+              }
+            }
+            tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
             //Rcpp::Rcout << "    tmp_objective = " << tmp_objective << "  max_objective = " << max_objective << endl;
             if(tmp_objective > max_objective){
               delete max_candidate;
               max_candidate = new Partition(tmp_candidate);
               max_objective = tmp_objective;
               //Rcpp::Rcout << "  max candidate updated. max_obj = " << max_objective  << endl;
-
               break_flag = 1;
               break;
             }
@@ -1694,7 +1705,6 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
           if(break_flag == 1) break;
         }
       } // closes if statement that checks whether we should go into the progressive merges
-*/
       if(break_flag == 1) break; // this will break us out of the loop over different proposed splits
     } // closes loop over the different proposed splits
     //Rcpp::Rcout << "Is max_candidate == particle_set[current_l]? " << Partition_Equal(particle_set[current_l], max_candidate) << endl;
