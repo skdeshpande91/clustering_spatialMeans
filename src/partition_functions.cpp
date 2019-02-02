@@ -898,7 +898,8 @@ void get_spectral_split(split_info &si, LPPartition gamma_l, const int T, const 
         eigvec.set_size(n_k,n_k);
         eigval.set_size(n_k);
         U.set_size(n_k,num_splits);
-        means.set_size(n_k, num_splits); // I think this should be means.set_size(num_splits, num_splits)
+        means.set_size(num_splits, num_splits);
+        //means.set_size(n_k, num_splits); // I think this should be means.set_size(num_splits, num_splits)
         //means.set_size(num_splits, num_splits); // holds centroids found by k-means. we are using num_splits-dimensinoal vectors and finding num_splits many clusters
         status = true;
         distance.set_size(num_splits);
@@ -935,7 +936,7 @@ void get_spectral_split(split_info &si, LPPartition gamma_l, const int T, const 
         U = arma::diagmat(1/sqrt(arma::sum(arma::square(U),1))) * U;
         status = arma::kmeans(means, U.t(), num_splits, random_subset, 10, false);
         if(status == false){
-          Rcpp::Rcout << "kmeans failed!!" << endl;
+          Rcpp::Rcout << "[get_spectral_split]: kmeans failed!!" << endl;
         } else{
           for(int i = 0; i < n_k; i++){
             distance.zeros();
@@ -1460,9 +1461,10 @@ void get_km_split(split_info &si, LPPartition gamma_l, const int T, const arma::
     split_k = k;
     if(n_k > 1){
       if(2 >= ceil(split_frac * sqrt(n_k))) max_splits = 3;
+      // attempt only up to sqrt(n_k) * split_frac splits.
       else max_splits = ceil(sqrt(n_k) * split_frac);
       //Rcpp::Rcout << "max_splits = " << max_splits << endl;
-      for(int num_splits = 2; num_splits <= max_splits; num_splits++){
+      for(int num_splits = 2; num_splits < max_splits; num_splits++){
         U.set_size(n_k, 1);
         means.set_size(1, num_splits);
         status = true;
@@ -1472,14 +1474,19 @@ void get_km_split(split_info &si, LPPartition gamma_l, const int T, const arma::
         
         // do k-means
         for(int ii = 0; ii < n_k; ii++){
-          U(ii,0) = gamma_l->alpha_hat[gamma_l->clusters[k][ii]];
+          U(ii,0) = gamma_l->alpha_hat[gamma_l->clusters[split_k][ii]];
+          if(U(ii,0) != U(ii,0)){
+            Rcpp::Rcout << "  possible non-finite value in U" << endl;
+            Rcpp::Rcout << "split_k = " << split_k << "  ii = " << ii << endl;
+            Rcpp::Rcout << gamma_l->clusters[split_k][ii] << endl;
+          }
         }
         //Rcpp::Rcout << "Ready to start k-means" << endl;
         
         status = arma::kmeans(means, U.t(), num_splits, random_subset, 10, false);
   
         if(status == false){
-          Rcpp::Rcout << "kmeans failed!!" << endl;
+          Rcpp::Rcout << "[get_km_split]: kmeans failed!!" << "n_k = " << n_k << " num_splits = " << num_splits << endl;
         } else{
           init_new_clusters.clear();
           init_new_clusters.resize(num_splits);

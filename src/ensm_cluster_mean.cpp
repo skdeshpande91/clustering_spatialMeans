@@ -331,7 +331,7 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar, const int T,  const arma::mat A_blo
         }
       }
       //Rcpp::Rcout << "Finished updating particle " << l << endl;
-      //particle_set[l]->Print_Partition(a_sigma, nu_sigma);
+      //particle_set[l]->Print_Partition(nu_sigma, lambda_sigma);
       //Rcpp::Rcout << "log_post = " << total_log_post(particle_set[l]) << endl;
     } // closes loop over the particle set
     // update the importance weights now
