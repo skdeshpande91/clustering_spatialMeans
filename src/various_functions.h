@@ -15,11 +15,8 @@ void Connected_Components(arma::mat M, int n, int* components, int* count);
 void DFSUtil(arma::mat M, int n, int v, bool* visited, int* components, int* count);
 arma::mat Distance_matrix(arma::vec alpha_hat, int nObs);
 
-
-
-
 // just use a vector and don't track all the pointers
-
 void new_Connected_Components(arma::mat M, int n, std::vector<int> components, int count);
 void new_DFSUtil(arma::mat M, int n, int v, std::vector<bool> visited, std::vector<int> components, int count);
+std::vector<std::vector<int> > Alternative_Connected_Components(std::vector<int> remain);
 #endif /* various_functions_hpp */

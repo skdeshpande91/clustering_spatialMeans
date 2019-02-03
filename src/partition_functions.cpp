@@ -1111,50 +1111,7 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
         }
         
         // now find the connected components of remain
-        tmp_new_clusters.clear();
-        remain_clusters.clear();
-        remain_clusters.push_back(std::vector<int>(1,remain[0]));
-        //Rcpp::Rcout << "    attempting to find connected components of remain" << endl;
-        for(int ii = 1; ii < remain.size(); ii++){
-          // start building the components again, this time with remain[ii]
-          tmp_new_clusters.clear();
-          tmp_new_clusters.push_back(std::vector<int>(1, remain[ii]));
-          // loop over the existing connected components
-          for(int new_k = 0; new_k < remain_clusters.size(); new_k++){
-            //Rcpp::Rcout << "    new_k = " << new_k ;
-            //A_tmp = Submatrix(A_block, 1, remain_clusters[new_k].size(), std::vector<int>(1,remain[ii]), remain_clusters[new_k]); // this should work but we'll use following to be safe
-            A_tmp = Submatrix(A_block, tmp_new_clusters[0].size(), remain_clusters[new_k].size(), tmp_new_clusters[0], remain_clusters[new_k]);
-            if(any(vectorise(A_tmp) == 1.0)){
-              // something in remain_clusters[new_k] is adjacent to remain[ii] so we should combine these clusters
-              //Rcpp::Rcout << "   connected to tmp_new_clusters[0]!" << endl;
-              for(int ix = 0; ix < remain_clusters[new_k].size(); ix++){
-                tmp_new_clusters[0].push_back(remain_clusters[new_k][ix]);
-              }
-            } else{ // remain_clusters[new_k] remains its own distinct component
-              //Rcpp::Rcout << "    not connected to tmp_new_clusters[0]!" << endl;
-              tmp_new_clusters.push_back(remain_clusters[new_k]);
-            }
-            remain_clusters[new_k].clear();
-          } // closes loop over elements of remain_clusters
-          // update remain_clusters
-          remain_clusters.clear();
-          for(int new_k = 0; new_k < tmp_new_clusters.size(); new_k++){
-            remain_clusters.push_back(tmp_new_clusters[new_k]);
-            tmp_new_clusters[new_k].clear();
-          }
-          tmp_new_clusters.clear();
-        } // closes loop over elements of remain used to determine connected components of remain
-        /*
-        // print statements to check our progress
-        Rcpp::Rcout << "Connected components of remain : " << endl;
-        for(int new_k = 0; new_k < remain_clusters.size(); new_k++){
-          Rcpp::Rcout << "   component " << new_k << " with size " << remain_clusters[new_k].size() << " : ";
-          for(int ii = 0; ii < remain_clusters[new_k].size(); ii++){
-            Rcpp::Rcout << remain_clusters[new_k][ii] << " ";
-          }
-          Rcpp::Rcout << endl;
-        }
-        */
+        remain_clusters = Alternative_Connected_Components(remain);
         
         // now it is time to find connected components of sub_left_tail
         tmp_new_clusters.clear();
@@ -1266,40 +1223,7 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
         }
         Rcpp::Rcout << endl;
         */
-        // now find the connected components of remain
-        tmp_new_clusters.clear();
-        remain_clusters.clear();
-        remain_clusters.push_back(std::vector<int>(1,remain[0]));
-        //Rcpp::Rcout << "    attempting to find connected components of remain" << endl;
-        for(int ii = 1; ii < remain.size(); ii++){
-          // start building the components again, this time with remain[ii]
-          tmp_new_clusters.clear();
-          tmp_new_clusters.push_back(std::vector<int>(1, remain[ii]));
-          // loop over the existing connected components
-          for(int new_k = 0; new_k < remain_clusters.size(); new_k++){
-            //Rcpp::Rcout << "    new_k = " << new_k ;
-            //A_tmp = Submatrix(A_block, 1, remain_clusters[new_k].size(), std::vector<int>(1,remain[ii]), remain_clusters[new_k]); // this should work but we'll use following to be safe
-            A_tmp = Submatrix(A_block, tmp_new_clusters[0].size(), remain_clusters[new_k].size(), tmp_new_clusters[0], remain_clusters[new_k]);
-            if(any(vectorise(A_tmp) == 1.0)){
-              // something in remain_clusters[new_k] is adjacent to remain[ii] so we should combine these clusters
-              //Rcpp::Rcout << "   connected to tmp_new_clusters[0]!" << endl;
-              for(int ix = 0; ix < remain_clusters[new_k].size(); ix++){
-                tmp_new_clusters[0].push_back(remain_clusters[new_k][ix]);
-              }
-            } else{ // remain_clusters[new_k] remains its own distinct component
-                    //Rcpp::Rcout << "    not connected to tmp_new_clusters[0]!" << endl;
-              tmp_new_clusters.push_back(remain_clusters[new_k]);
-            }
-            remain_clusters[new_k].clear();
-          } // closes loop over elements of remain_clusters
-            // update remain_clusters
-          remain_clusters.clear();
-          for(int new_k = 0; new_k < tmp_new_clusters.size(); new_k++){
-            remain_clusters.push_back(tmp_new_clusters[new_k]);
-            tmp_new_clusters[new_k].clear();
-          }
-          tmp_new_clusters.clear();
-        } // closes loop over elements of remain used to determine connected components of remain
+        remain_clusters = Alternative_Connected_Components(remain);
         /*
         // print statements for checking progress
         //Rcpp::Rcout << "Connected components of remain : " << endl;
