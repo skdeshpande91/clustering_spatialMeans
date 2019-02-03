@@ -1109,19 +1109,7 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
         for(int ii = 0; ii < right_tail.size(); ii++){
           remain.push_back(right_tail[ii]);
         }
-        /*
-         // print statements to check our progress
-        Rcpp::Rcout << "  sub_left_tail has size " << sub_left_tail.size() << " : " ;
-        for(int ii = 0; ii < sub_left_tail.size(); ii++){
-          Rcpp::Rcout << sub_left_tail[ii] << " " ;
-        }
-        Rcpp::Rcout << endl;
-        Rcpp::Rcout << "  remain has size " << remain.size() << " : ";
-        for(int ii = 0; ii < remain.size(); ii++){
-          Rcpp::Rcout << remain[ii] << " ";
-        }
-        Rcpp::Rcout << endl;
-        */
+        
         // now find the connected components of remain
         tmp_new_clusters.clear();
         remain_clusters.clear();
