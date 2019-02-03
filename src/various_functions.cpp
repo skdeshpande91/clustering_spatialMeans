@@ -96,7 +96,7 @@ void new_DFSUtil(arma::mat M, int n, int v, std::vector<bool> visited, std::vect
   }
 }
 
-std::vector<std::vector<int> > Alternative_Connected_Components(std::vector<int> remain){
+std::vector<std::vector<int> > Alternative_Connected_Components(std::vector<int> remain, const arma::mat &A_block){
   std::vector<std::vector<int> > remain_clusters; 
   std::vector<std::vector<int> > tmp_new_clusters; // temporarily used to build the connected components.
   remain_clusters.push_back(std::vector<int>(1,remain[0]));
@@ -129,7 +129,32 @@ std::vector<std::vector<int> > Alternative_Connected_Components(std::vector<int>
 
 
 
-
+void Alternative_Connected_Components(int element, std::vector<std::vector<int> >& left_new_clusters, const arma::mat &A_block){
+  std::vector<std::vector<int> > tmp_new_clusters; // temporarily used to build the connected components.
+  tmp_new_clusters.push_back(std::vector<int>(1, element));
+  arma::mat A_tmp; 
+  // loop over the existing connected components
+  for(int cc = 0; cc < left_new_clusters.size(); cc++){
+    A_tmp = Submatrix(A_block, tmp_new_clusters[0].size(), left_new_clusters[cc].size(), tmp_new_clusters[0], left_new_clusters[cc]);
+    if(any(vectorise(A_tmp) == 1.0)){ // something in left_new_clusters[cc] is adjacent to element so we should combine these clusters
+      for(int ix = 0; ix < left_new_clusters[cc].size(); ix++){
+        tmp_new_clusters[0].push_back(left_new_clusters[cc][ix]);
+      }
+    } else{ // left_new_clusters[cc] remains its own distinct component
+      tmp_new_clusters.push_back(left_new_clusters[cc]);
+    }
+    left_new_clusters[cc].clear();
+  } // closes loop over elements of left_new_clusters
+  left_new_clusters.clear();
+  // update left_new_clusters: copy tmp_new_clusters
+  for(int cc = 0; cc < tmp_new_clusters.size(); cc++){
+    left_new_clusters.push_back(tmp_new_clusters[cc]);
+    tmp_new_clusters[cc].clear();
+  }
+  tmp_new_clusters.clear();
+  
+  return ;
+}
 
 
 

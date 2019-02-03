@@ -1039,8 +1039,6 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
   std::vector<std::vector<int> > right_new_clusters; // holds connected components of sub_right_tail
   std::vector<std::vector<int> > remain_clusters;
   
-  std::vector<std::vector<int> > tmp_new_clusters; // temporarily used to build the connected components.
-  
   double tmp_alpha_bar = 0.0; // temporarily hold mean of the alpha-hat's in components of sub_*_tail
   std::vector<double> tmp_dist; // holds distance from the new sub-clusters to adjacent existing clusters
   std::vector<double> tmp_nn; // holds indices of potential nearest neighbors for new sub-clusters
@@ -1111,36 +1109,13 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
         }
         
         // now find the connected components of remain
-        remain_clusters = Alternative_Connected_Components(remain);
+        remain_clusters = Alternative_Connected_Components(remain, A_block);
+        Alternative_Connected_Components(left_tail[i], left_new_clusters, A_block);
         
-        // now it is time to find connected components of sub_left_tail
-        tmp_new_clusters.clear();
-        tmp_new_clusters.push_back(std::vector<int>(1,left_tail[i]));
-        for(int new_k = 0; new_k < left_new_clusters.size(); new_k++){
-          /*
-          // print statements to check our progress
-          //Rcpp::Rcout << "left_new_clusters[new_k] is: " ;
-          //for(int ii = 0; ii < left_new_clusters[new_k].size(); ii++) Rcpp::Rcout << left_new_clusters[new_k][ii] << " ";
-          //Rcpp::Rcout << endl;
-          //Rcpp::Rcout << "tmp_new_clusters[0] is : " ;
-          //for(int ii = 0; ii < tmp_new_clusters[0].size(); ii++) Rcpp::Rcout << tmp_new_clusters[0][ii] << " ";
-          //Rcpp::Rcout << endl;
-          */
-          A_tmp = Submatrix(A_block, tmp_new_clusters[0].size(), left_new_clusters[new_k].size(), tmp_new_clusters[0], left_new_clusters[new_k]);
-          if(any(vectorise(A_tmp) == 1.0)){
-            for(int ii = 0; ii < left_new_clusters[new_k].size(); ii++){
-              tmp_new_clusters[0].push_back(left_new_clusters[new_k][ii]);
-            }
-          } else{
-            tmp_new_clusters.push_back(left_new_clusters[new_k]);
-          }
-          left_new_clusters[new_k].clear();
-        }
         
         left_new_clusters.clear();
         left_k_star.clear();
-        for(int new_k = 0; new_k < tmp_new_clusters.size(); new_k++){
-          left_new_clusters.push_back(tmp_new_clusters[new_k]);
+        for(int new_k = 0; new_k < left_new_clusters.size(); new_k++){
           // now figure out the connected components
           tmp_alpha_bar = alpha_bar_func(left_new_clusters[new_k], gamma_l, T, A_block, rho, a1, a2);
           tmp_nn.clear();
@@ -1168,17 +1143,7 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
             left_k_star.push_back(-1);
           }
         } // closes loop that adds components of sub_left_tail to left_new_clusters and finds their nearest neighbors
-        /*
-        // print statements used to check progress
-        Rcpp::Rcout << "left_new_clusters:" << endl;
-        for(int new_k = 0; new_k < left_new_clusters.size(); new_k++){
-          Rcpp::Rcout << "    new_cluster " << new_k << " with size " << left_new_clusters[new_k].size() << " and neighbor " << left_k_star[new_k] << ":" << endl;
-          for(int ii = 0; ii < left_new_clusters[new_k].size(); ii++){
-            Rcpp::Rcout << left_new_clusters[new_k][ii] << " ";
-          }
-          Rcpp::Rcout << endl;
-        }
-        */
+        
         // now we need to add things to si
         si.split_k.push_back(k);
         si.new_clusters.push_back(left_new_clusters);
@@ -1223,7 +1188,8 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
         }
         Rcpp::Rcout << endl;
         */
-        remain_clusters = Alternative_Connected_Components(remain);
+        remain_clusters = Alternative_Connected_Components(remain, A_block);
+        Alternative_Connected_Components(right_tail[i], right_new_clusters, A_block);
         /*
         // print statements for checking progress
         //Rcpp::Rcout << "Connected components of remain : " << endl;
@@ -1235,34 +1201,9 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
         //   Rcpp::Rcout << endl;
         // }
         */
-        // now it is time to find connected components of sub_right_tail
-        tmp_new_clusters.clear();
-        tmp_new_clusters.push_back(std::vector<int>(1,right_tail[i]));
-        for(int new_k = 0; new_k < right_new_clusters.size(); new_k++){
-          /*
-          // print statements for checking progress
-          Rcpp::Rcout << "right_new_clusters[new_k] is: " ;
-          for(int ii = 0; ii < right_new_clusters[new_k].size(); ii++) Rcpp::Rcout << right_new_clusters[new_k][ii] << " ";
-          Rcpp::Rcout << endl;
-          Rcpp::Rcout << "tmp_new_clusters[0] is : " ;
-          for(int ii = 0; ii < tmp_new_clusters[0].size(); ii++) Rcpp::Rcout << tmp_new_clusters[0][ii] << " ";
-          Rcpp::Rcout << endl;
-          */
-          A_tmp = Submatrix(A_block, tmp_new_clusters[0].size(), right_new_clusters[new_k].size(), tmp_new_clusters[0], right_new_clusters[new_k]);
-          if(any(vectorise(A_tmp) == 1.0)){
-            for(int ii = 0; ii < right_new_clusters[new_k].size(); ii++){
-              tmp_new_clusters[0].push_back(right_new_clusters[new_k][ii]);
-            }
-          } else{
-            tmp_new_clusters.push_back(right_new_clusters[new_k]);
-          }
-          right_new_clusters[new_k].clear();
-        }
-        
-        right_new_clusters.clear();
+  
         right_k_star.clear();
-        for(int new_k = 0; new_k < tmp_new_clusters.size(); new_k++){
-          right_new_clusters.push_back(tmp_new_clusters[new_k]);
+        for(int new_k = 0; new_k < right_new_clusters.size(); new_k++){
           // now figure out the connected components
           tmp_alpha_bar = alpha_bar_func(right_new_clusters[new_k], gamma_l, T, A_block, rho, a1, a2);
           tmp_nn.clear();
