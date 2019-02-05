@@ -1075,17 +1075,6 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
       for(int i = ceil(n_k*split_frac); i < n_k-ceil(n_k*split_frac); i++){
         center.push_back(gamma_l->clusters[k][alpha_hat_indices(i)]);
       }
-      /*
-      Rcpp::Rcout << "left-tail has size " << left_tail.size() << " : " ;
-      for(int i = 0; i < left_tail.size(); i++) Rcpp::Rcout << left_tail[i] << " ";
-      Rcpp::Rcout << endl;
-      Rcpp::Rcout << "center has size " << center.size() << " : " ;
-      for(int i = 0; i < center.size(); i++) Rcpp::Rcout << center[i] << " ";
-      Rcpp::Rcout << endl;
-      Rcpp::Rcout << "right tail has size " << right_tail.size() << " : " ;
-      for(int i = 0; i < right_tail.size(); i++) Rcpp::Rcout << right_tail[i] << " " ;
-      Rcpp::Rcout << endl;
-      */
       
       // now try to remove just the left-tail
       sub_left_tail.clear();
@@ -1112,8 +1101,6 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
         remain_clusters = Alternative_Connected_Components(remain, A_block);
         Alternative_Connected_Components(left_tail[i], left_new_clusters, A_block);
         
-        
-        left_new_clusters.clear();
         left_k_star.clear();
         for(int new_k = 0; new_k < left_new_clusters.size(); new_k++){
           // now figure out the connected components
@@ -1175,33 +1162,9 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
         for(int ii = 0; ii < left_tail.size(); ii++){
           remain.push_back(left_tail[ii]);
         }
-        /*
-        // print statement to check progress
-        Rcpp::Rcout << "  sub_right_tail has size " << sub_right_tail.size() << " : " ;
-        for(int ii = 0; ii < sub_right_tail.size(); ii++){
-          Rcpp::Rcout << sub_right_tail[ii] << " " ;
-        }
-        Rcpp::Rcout << endl;
-        Rcpp::Rcout << "  remain has size " << remain.size() << " : ";
-        for(int ii = 0; ii < remain.size(); ii++){
-          Rcpp::Rcout << remain[ii] << " ";
-        }
-        Rcpp::Rcout << endl;
-        */
         remain_clusters = Alternative_Connected_Components(remain, A_block);
         Alternative_Connected_Components(right_tail[i], right_new_clusters, A_block);
-        /*
-        // print statements for checking progress
-        //Rcpp::Rcout << "Connected components of remain : " << endl;
-        //for(int new_k = 0; new_k < remain_clusters.size(); new_k++){
-        //  Rcpp::Rcout << "   component " << new_k << " with size " << remain_clusters[new_k].size() << " : ";
-        //   for(int ii = 0; ii < remain_clusters[new_k].size(); ii++){
-        //    Rcpp::Rcout << remain_clusters[new_k][ii] << " ";
-        //   }
-        //   Rcpp::Rcout << endl;
-        // }
-        */
-  
+        
         right_k_star.clear();
         for(int new_k = 0; new_k < right_new_clusters.size(); new_k++){
           // now figure out the connected components
