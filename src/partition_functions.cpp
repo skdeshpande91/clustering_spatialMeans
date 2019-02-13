@@ -265,10 +265,7 @@ void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, con
   
   std::vector<double> p_star;
   std::vector<double> log_post;
-  //Rcpp::Rcout << "[update_w]: About to compute total_log_post(particle_set[0])" << endl;
-  //Rcpp::Rcout << total_log_post(particle_set[0]) << endl;
-  //particle_set[0]->Print_Partition();
-  //log_post.push_back(total_log_post(particle_set[0], a_sigma, nu_sigma));
+
   log_post.push_back(total_log_post(particle_set[0], nu_sigma, lambda_sigma));
   p_star.push_back(0);
   //max_log_post = total_log_post(particle_set[0], a_sigma, nu_sigma);
