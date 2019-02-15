@@ -123,9 +123,9 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar, const int T,  const arma::mat A_blo
   double old_objective = 0.0;
   double objective = 0.0;
   
-  objective = Entropy(0, particle_set[0], particle_set, w);
+  //objective = Entropy(0, particle_set[0], particle_set, w);
+  objective = lambda * Entropy(0, particle_set[0], particle_set, w); // forgot the lambda!
   for(int l = 0; l < L; l++){
-    //objective += w[l] * total_log_post(particle_set[l], a_sigma, nu_sigma);
     objective += w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma);
   }
 
@@ -347,11 +347,10 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar, const int T,  const arma::mat A_blo
       flag = 1;
     }
     // compute the objective
-    objective = Entropy(0, particle_set[0], particle_set, w);
+    //objective = Entropy(0, particle_set[0], particle_set, w);
+    objective = lambda * Entropy(0, particle_set[0], particle_set, w);
     for(int l = 0; l < L; l++){
-      //objective += w[l] * total_log_post(particle_set[l], a_sigma, nu_sigma);
       objective += w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma);
-
     }
     if(abs((objective - old_objective)/old_objective) < 0.01 * eps){
       Rcpp::Rcout << "[ensm_cluster_mean]: Objective has not increased much" << endl;
@@ -386,11 +385,6 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar, const int T,  const arma::mat A_blo
     //log_post[l] = total_log_post(unik_particles[l], a_sigma, nu_sigma);
     log_post[l] = total_log_post(unik_particles[l], nu_sigma, lambda_sigma);
     
-    
-    // 14 January Update: we are getting some really strange results with the log-likelihood being computed at the end here
-    //Rcpp::Rcout << "unik partition" << l << endl;
-    //unik_particles[l]->Print_Partition(a_sigma, nu_sigma);
-    //Rcpp::Rcout << "log_like[" << l << "] = " << log_like[l] << endl;
   }
   
   arma::vec tmp_vec = arma::zeros<vec>(1);

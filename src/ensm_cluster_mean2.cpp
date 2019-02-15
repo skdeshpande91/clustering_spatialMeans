@@ -96,7 +96,8 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
   double old_objective = 0.0;
   double objective = 0.0;
   
-  objective = Entropy(0, particle_set[0], particle_set, w);
+  //objective = Entropy(0, particle_set[0], particle_set, w);
+  objective = lambda * Entropy(0, particle_set[0], particle_set, w); // forgot the lambda here!
   for(int l = 0; l < L; l++){
     objective += w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma);
   }
@@ -252,9 +253,9 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       flag = 1;
     }
     // compute the objective
-    objective = Entropy(0, particle_set[0], particle_set, w);
+    //objective = Entropy(0, particle_set[0], particle_set, w);
+    objective = lambda * Entropy(0, particle_set[0], particle_set, w); // forgot the lambda here as well!
     for(int l = 0; l < L; l++){
-      //objective += w[l] * total_log_post(particle_set[l], a_sigma, nu_sigma);
       objective += w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma);
 
     }

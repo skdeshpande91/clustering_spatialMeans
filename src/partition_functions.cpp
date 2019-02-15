@@ -158,11 +158,8 @@ double Entropy(unsigned current_l, Partition* candidate_particle, std::vector<LP
   for(unsigned l = 0; l < L; l++){ // loop over current particle set
 	counter = 0;
 	if(l != current_l){
-	//std::cout << "[getUnik]: l = " << l << std::endl;
 	  for(unsigned ul = 0; ul < num_unik_particles; ul++){
 	    if(Partition_Equal(particle_set[l], unik_particles[ul]) == 1){
-	    // l^th partition is equal to the ul^th unique partition
-	    //std::cout << "particle " << l << " is equal to unik particle " << ul << std::endl;
 	      p_star[ul] += w[l]; // update p_star
 	      break;
         } else {
@@ -170,10 +167,7 @@ double Entropy(unsigned current_l, Partition* candidate_particle, std::vector<LP
         }
 	  }
 
-	  //std::cout << "[getUnik]: counter = " << counter << std::endl;
 	  if(counter == num_unik_particles){
-	    //std::cout << "we found a new unique particle!" << std::endl;
-	    //particle_set[l]->Print_Partition();
 	    // we have found a new unique particle
 	    unik_particles.push_back(particle_set[l]);
 	    p_star.push_back(w[l]);
@@ -182,9 +176,7 @@ double Entropy(unsigned current_l, Partition* candidate_particle, std::vector<LP
     }
   }
   double entropy = 0.0;
-  //std::cout << "p_star = " ;
   for(unsigned ul = 0; ul < num_unik_particles; ul++){
-	  //std::cout << p_star[ul] << " " ;
 	  entropy += p_star[ul] * log(p_star[ul]);
   }
   //std::cout << std::endl;
@@ -219,7 +211,6 @@ double total_log_like(LPPartition partition, const double nu_sigma, const double
     quad_form += partition->y_Omegay_y[k];
   }
   
-  //log_like = 0.5 * log_det - (a_sigma + partition->nObs/2) * log( (nu_sigma + quad_form)/2);
   log_like = 0.5 * log_det - ( (nu_sigma + partition->nObs)/2) * log( (nu_sigma * lambda_sigma + quad_form)/2);
 
   return log_like;
@@ -246,7 +237,6 @@ double alpha_bar_func(std::vector<int> new_cluster, LPPartition gamma_l, const i
   }
 }
 
-//void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, const int L, const double a_sigma, const double nu_sigma, const double lambda)
 void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, const int L, const double nu_sigma, const double lambda_sigma, const double lambda)
 {
   
@@ -259,7 +249,7 @@ void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, con
   // First we need to identify the unique particles
   std::vector<LPPartition> unik_particles;
   unik_particles.push_back(particle_set[0]);
-  std::vector<int> particle_assignment(L,-1); // tells us to which unique particle each element of particle_ste corresponds
+  std::vector<int> particle_assignment(L,-1); // tells us to which unique particle each element of particle_set corresponds
   particle_assignment[0] = 0;
   std::vector<int> particle_counts;
   
