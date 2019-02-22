@@ -1,8 +1,7 @@
 //
 //  ensm_cluster_mean2.cpp
 //
-//  This only considers spectral splits, island moves, borders, and merges
-//  Basically eliminates tail_splits and km_splits
+//  Eliminate the stopping criteria abs((old_obj - obj)/old_obj) < eps
 //  Created by Sameer Deshpande on 13 Feb 019.
 //
 
@@ -65,18 +64,21 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
   // for the main loop we need the following quantitites
   LPPartition spec_split_candidate = new Partition(gamma_0); // for the spectral splits
   LPPartition tail_split_candidate = new Partition(gamma_0); // for the tail splits
+  LPPartition km_split_candidate = new Partition(gamma_0); // for km splits
   LPPartition merge_candidate = new Partition(gamma_0); // for the merge candidates
   LPPartition border_candidate = new Partition(gamma_0); // for the border moves
   LPPartition island_candidate = new Partition(gamma_0); // for the island candidates
   
   split_info spec_si; // holds the information for spectral splits
   split_info tail_si; // holds the information for the tail splits
+  split_info km_si; // holds the information for the km splits
   split_info bi ; // holds information for border moves
   split_info isl_i; // holds information for island moves
   merge_info mi; // holds informatino for the merge moves
   
   double spec_split_obj = 0.0;
   double tail_split_obj = 0.0;
+  double km_split_obj = 0.0;
   double merge_obj = 0.0;
   double border_obj = 0.0;
   double island_obj = 0.0;
@@ -84,6 +86,7 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
   
   int spec_split_flag = 1; // essentially will hold the value of Partition_Equal(spec_split_candidate, particle_set[l])
   int tail_split_flag = 1; // holds value of Partition_Equal(tail_split_candidate, particle_set[l])
+  int km_split_flag = 1; // holds value of Partition_Equal(km_split_candidate, particle_set[l])
   int merge_flag = 1; // holds value of Partition_Equal(merge_candidate, particle_set[l]);
   int border_flag = 1; // holds value of Partition_Equal(border_candidate, particle_set[l]);
   int island_flag = 1; // holds value of Partition_Equal(island_flag, particle_set[l])
@@ -110,15 +113,18 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
     conv_counter = 0; // counts the number of particles unchanged in our sweep
     for(int l = 0; l < L; l++){
       //Rcpp::Rcout << "Starting to update particle " << l << endl;
+      Rcpp::checkUserInterrupt();
       spec_split_flag = 1;
       tail_split_flag = 1;
+      km_split_flag = 1;
       border_flag = 1;
       merge_flag = 1;
       island_flag = 1;
       
       // Spectral splits
       //Rcpp::Rcout << "    Starting spectral split" << endl;
-      get_spectral_split(spec_si, particle_set[l], T, A_block, rho, a1, a2, split_frac);
+      //get_spectral_split(spec_si, particle_set[l], T, A_block, rho, a1, a2, split_frac);
+      get_spectral_split(spec_si, particle_set[l], T, A_block, rho, a1, a2, 5*split_frac); // try way more splits, just like with get_km_splits
       //Rcpp::Rcout << "[ensm_cluster_mean]: Got " << spec_si.num_splits << " spectral splits" << endl;
       delete spec_split_candidate;
       spec_split_candidate = new Partition(particle_set[l]);
@@ -126,11 +132,12 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       spec_split_obj = w[l]*total_log_post(spec_split_candidate, nu_sigma, lambda_sigma) + lambda * Entropy(l, spec_split_candidate, particle_set, w);
       
       spec_split_flag = Partition_Equal(spec_split_candidate, particle_set[l]);
-      //Rcpp::Rcout << "  orig_obj = " << w[l] * total_log_post(particle_set[l], a_sigma, nu_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
-      //Rcpp::Rcout << "    spec_split_obj = " << spec_split_obj << "    spec_split_flag =  " << spec_split_flag << endl;
+      //Rcpp::Rcout << "  orig_obj = " << w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
+      //Rcpp::Rcout << "  spec_split_obj = " << spec_split_obj << "    spec_split_flag =  " << spec_split_flag << endl;
       accepted_obj = spec_split_obj;
       
       // tail split
+      //Rcpp::Rcout << "    Starting tail split" << endl;
       get_tail_split(tail_si, particle_set[l], T, A_block, rho, a1, a2, split_frac);
       delete tail_split_candidate;
       tail_split_candidate = new Partition(particle_set[l]);
@@ -140,6 +147,22 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       if(tail_split_obj > accepted_obj){
         accepted_obj = tail_split_obj;
       }
+      //Rcpp::Rcout << "  orig_obj = " << w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
+      //Rcpp::Rcout << "  tail_split_obj = " << tail_split_obj << "  tail_split_flag = " << tail_split_flag << endl;
+      
+      // km split
+      get_km_split(km_si, particle_set[l], T, A_block, rho, a1, a2, 5*split_frac); // the 5*split_frac seems like a bit of a hack. probably best to
+      delete km_split_candidate;
+      km_split_candidate = new Partition(particle_set[l]);
+      best_split(km_si, km_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      km_split_obj = w[l]*total_log_post(km_split_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(l, km_split_candidate, particle_set,w);
+      km_split_flag = Partition_Equal(km_split_candidate, particle_set[l]);
+      if(km_split_obj > accepted_obj){
+        accepted_obj = km_split_obj;
+      }
+      //Rcpp::Rcout << "  orig_obj = " << w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
+      //Rcpp::Rcout << "  km_split_obj = " << km_split_obj << "  km_split_flag = " << km_split_flag << endl;
+      
       // merges
       //Rcpp::Rcout << "    Starting merge" << endl;
       get_merge(mi, particle_set[l], A_block);
@@ -150,8 +173,9 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       merge_obj = w[l]*total_log_post(merge_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(l, merge_candidate, particle_set, w);
       
       merge_flag = Partition_Equal(merge_candidate, particle_set[l]);
-      //Rcpp::Rcout << "      orig_obj = " << w[l] * total_log_post(particle_set[l], a_sigma, nu_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
-      //Rcpp::Rcout << "      merge_obj = " << merge_obj << "  merge_flag = " << merge_flag << endl;
+     // Rcpp::Rcout << "  orig_obj = " << w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
+      //Rcpp::Rcout << "  merge_obj = " << tail_split_obj << "  merge_flag = " << merge_flag << endl;
+      
       if(merge_obj > accepted_obj){
         accepted_obj = merge_obj;
       }
@@ -168,8 +192,9 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       border_obj = w[l]*total_log_post(border_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(l, border_candidate, particle_set,w);
       
       border_flag = Partition_Equal(border_candidate, particle_set[l]);
-      //Rcpp::Rcout << "      orig_obj = " << w[l] * total_log_post(particle_set[l], a_sigma, nu_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
-      //Rcpp::Rcout << "      border_obj = " << border_obj << "   border_flag = " << border_flag << endl;
+      //Rcpp::Rcout << "  orig_obj = " << w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
+      //Rcpp::Rcout << "  border_obj = " << tail_split_obj << "  border_flag = " << border_flag << endl;
+      
       if(border_obj > accepted_obj){
         accepted_obj = border_obj;
       }
@@ -186,9 +211,9 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       island_obj = w[l]*total_log_post(island_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(l, island_candidate, particle_set,w);
       island_flag = Partition_Equal(island_candidate, particle_set[l]);
       
-      //Rcpp::Rcout << "      orig_obj = " << w[l] * total_log_post(particle_set[l], a_sigma, nu_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
-      //Rcpp::Rcout << "      island_obj = " << island_obj << "  island_flag = " << island_flag <<endl;
-
+      //Rcpp::Rcout << "  orig_obj = " << w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma) + lambda*Entropy(l, particle_set[l], particle_set, w) << endl;
+      //Rcpp::Rcout << "  island_obj = " << tail_split_obj << "  island_flag = " << island_flag << endl;
+      
       if(island_obj > accepted_obj){
         accepted_obj = island_obj;
       }
@@ -203,36 +228,61 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
         // spectral split accepted
         if(spec_split_flag == 0){
           particle_set[l]->Copy_Partition(spec_split_candidate);
+          Rcpp::Rcout << "particle " << l << " spec_split accepted :" << endl;
+          particle_set[l]->Print_Partition(nu_sigma, lambda_sigma);
         } else{
           // particle has not moved
+          Rcpp::Rcout << "particle " << l << " did not change. w = " << w[l] << endl;
           conv_counter++;
           //Rcpp::Rcout << "[ensm_cluster_mean]: particle has not moved" << endl;
         }
       } else if(accepted_obj == tail_split_obj){
         if(tail_split_flag == 0){
           particle_set[l]->Copy_Partition(tail_split_candidate);
+          Rcpp::Rcout << "particle " << l << " tail_split accepted :" << endl;
+          particle_set[l]->Print_Partition(nu_sigma, lambda_sigma);
         } else{
+          Rcpp::Rcout << "particle " << l << " did not change. w = " << w[l] << endl;
+          conv_counter++;
+        }
+      } else if(accepted_obj == km_split_obj){
+        if(km_split_flag == 0){
+          particle_set[l]->Copy_Partition(km_split_candidate);
+          Rcpp::Rcout << "particle " << l << " km_split accepted : " << endl;
+          particle_set[l]->Print_Partition(nu_sigma, lambda_sigma);
+          
+        } else{
+          Rcpp::Rcout << "particle " << l << " did not change. w = " << w[l] << endl;
           conv_counter++;
         }
       } else if(accepted_obj == merge_obj){
         if(merge_flag == 0){
           particle_set[l]->Copy_Partition(merge_candidate);
+          Rcpp::Rcout << "particle " << l << " merge accepted : " << endl;
+          particle_set[l]->Print_Partition(nu_sigma, lambda_sigma);
         } else{
           //Rcpp::Rcout << "[ensm_cluster_mean]: particle has not moved ... but control reached bad spot with accepted_obj == merge_obj & merge_flag == 1" << endl;
+          Rcpp::Rcout << "particle " << l << " did not change. w = " << w[l] << endl;
           conv_counter++;
         }
       } else if(accepted_obj == border_obj){
         if(border_flag == 0){
           particle_set[l]->Copy_Partition(border_candidate);
+          Rcpp::Rcout << "particle " << l << " border accepted : " << endl;
+          particle_set[l]->Print_Partition(nu_sigma, lambda_sigma);
         } else{
           //Rcpp::Rcout << "[ensm_cluster_mean]: particle has not moved ... but control reached bad spot with accepted_obj == border_obj & border_flag == 1" << endl;
+          Rcpp::Rcout << "particle " << l << " did not change. w = " << w[l] << endl;
           conv_counter++;
         }
       } else if(accepted_obj == island_obj){
         if(island_flag == 0){
           particle_set[l]->Copy_Partition(island_candidate);
+          Rcpp::Rcout << "particle " << l << " island accepted : " << endl;
+          particle_set[l]->Print_Partition(nu_sigma, lambda_sigma);
         } else{
           //Rcpp::Rcout << "[ensm_cluster_mean]: particle has not moved ... but control reached bad spot with accepted obj == island_obj & island_flag == 1" << endl;
+          Rcpp::Rcout << "particle " << l << " did not change. w = " << w[l] << endl;
           conv_counter++;
         }
       }
@@ -261,7 +311,7 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
     }
     if(abs((objective - old_objective)/old_objective) < 0.01 * eps){
       Rcpp::Rcout << "[ensm_cluster_mean]: Objective has not increased much" << endl;
-      flag = 1;
+      //flag = 1;
     }
     Rcpp::Rcout << "   conv_counter = " << conv_counter << endl;
     Rcpp::Rcout << "   objective = " << objective << "   old_objective = " << old_objective << "  %diff = " << abs( (objective - old_objective)/objective) << endl;

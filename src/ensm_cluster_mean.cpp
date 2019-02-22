@@ -354,7 +354,7 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar, const int T,  const arma::mat A_blo
     }
     if(abs((objective - old_objective)/old_objective) < 0.01 * eps){
       Rcpp::Rcout << "[ensm_cluster_mean]: Objective has not increased much" << endl;
-      flag = 1;
+      //flag = 1;
     }
     Rcpp::Rcout << "   conv_counter = " << conv_counter << endl;
     Rcpp::Rcout << "   objective = " << objective << "   old_objective = " << old_objective << "  %diff = " << abs( (objective - old_objective)/objective) << endl;

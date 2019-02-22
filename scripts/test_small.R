@@ -11,8 +11,19 @@ load("data/small_example_1.RData")
 sourceCpp("src/ensm_cluster_mean.cpp")
 sourceCpp("src/ensm_cluster_mean2.cpp")
 
-test_1 <- ensm_cluster_mean2(ybar_1_small[,1], T = 10, A_block_small, 
-                            L = 50, gamma_init = gamma_1_small, a1 = 1/10, a2 = 10, rho = 0.99, eta = 1, lambda = 1, split_frac = 0.2, max_iter = 20)
+
+
+
+test1 <- ensm_cluster_mean(ybar_1_small[,1], T = 10, A_block_small, L = 50, gamma_init = gamma_1_small, a1 = 1/10, a2 = 10, eta = 1, max_iter = 20)
+test2 <- ensm_cluster_mean2(ybar_1_small[,1], T = 10, A_block_small, L = 50, gamma_init = gamma_1_small, a1 = 1/10, a2 = 10, eta = 1, max_iter = 20)
+
+
+test1 <- ensm_cluster_mean(ybar_1_small[,1], T = 10, A_block_small, L = 50, gamma_init = gamma_1_small, a1 = 1/10, a2 = 10, eta = 5, max_iter = 20)
+test2 <- ensm_cluster_mean2(ybar_1_small[,1], T = 10, A_block_small, L = 50, gamma_init = gamma_1_small, a1 = 1/10, a2 = 10, eta = 5, max_iter = 20)
+
+
+
+test_1 <- ensm_cluster_mean2(ybar_1_small[,1], T = 10, A_block_small, L = 50, gamma_init = gamma_1_small, a1 = 1/10, a2 = 10, rho = 0.99, eta = 1, lambda = 1, split_frac = 0.2, max_iter = 20)
 
 test2 <- ensm_cluster_mean(ybar_1_small[,1], T = 10, A_block_small, L = 50, gamma_init = gamma_1_small, a1 = 1/10, a2 = 10, rho = 0.99, eta = 1, lambda = 1, split_frac = 0.1, max_iter = 20)
 

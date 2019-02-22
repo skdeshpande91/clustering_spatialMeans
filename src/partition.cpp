@@ -890,7 +890,19 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
             cluster_config[kk-1] = orig_cluster_config[kk];
             clusters[kk-1].clear();
             clusters[kk-1].resize(cluster_config[kk-1],0);
+            // if I were to guess, this loop causes some problems:
+            //   we should loop over i until cluster_config[kk-1] not cluster_config[kk], which presumably is still 0 since
+            // the outer loop hasn't hit kk yet, and cluster_config[kk]
+            // confirmation: when I tried running it again, I noticed that the loop never entered i.
+            /*
             for(int i = 0; i < cluster_config[kk]; i++){
+              Rcpp::Rcout << "        i = " << i << endl;
+              clusters[kk-1][i] = orig_clusters[kk][i];
+              cluster_assignment[clusters[kk-1][i]] = kk-1;
+              alpha_hat[clusters[kk-1][i]] = orig_alpha_hat[clusters[kk-1][i]];
+            }
+            */
+            for(int i = 0; i < cluster_config[kk-1];i++){
               clusters[kk-1][i] = orig_clusters[kk][i];
               cluster_assignment[clusters[kk-1][i]] = kk-1;
               alpha_hat[clusters[kk-1][i]] = orig_alpha_hat[clusters[kk-1][i]];
