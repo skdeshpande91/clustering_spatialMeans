@@ -10,6 +10,7 @@
 
 #include "partition.h"
 #include "partition_functions.h"
+#include "various_functions.h"
 #include <vector>
 
 using namespace arma;
@@ -27,17 +28,26 @@ Rcpp::List test_km(arma::vec ybar, const int T,
                    const double a1 = 1.0, const double a2 = 1.0,
                    const double nu_sigma = 1, const double lambda_sigma = 1,
                    const double rho = 0.99, const double lambda = 1.0,
-                   const double eta = 1.0)
+                   const double eta = 1.0,
+                   const double split_frac = 0.1)
 {
   int n = ybar.size();
-  LPPartition gamma_0 = new Partition(n, gamma_init, ybar, T, A_block, rho, a1, a2, eta);
-  int orig_K = gamma_0->K;
+  LPPartition gamma_l = new Partition(n, gamma_init, ybar, T, A_block, rho, a1, a2, eta);
+  
+  split_info si;
+  
+  
+  
+  int orig_K = gamma_l->K;
+  
+  
+  
+  
   int max_splits = 2;
   int split_k = 0;
   int n_k = 1;
   
-  // initialize some stuff needed for k-means clustering
-  arma::mat U = arma::zeros
+
   // initialize the stuff needed for k-means clustering
   arma::mat U = arma::zeros<mat>(n_k, 1); // holds the data passed to k-means
   arma::mat means = arma::zeros<mat>(n_k,1); // holds data passed to k-means
@@ -66,17 +76,24 @@ Rcpp::List test_km(arma::vec ybar, const int T,
   
   std::vector<int> k_star; // actual nearest neighbors of newly formed clusters
   
+  // for testing the new connected components code we need the following
+  std::vector<std::vector<int> > test_components;
+
   
   for(int k = 0; k < orig_K; k++){
     //Rcpp::Rcout << "[get_km_split]: k = " << k << endl;
     n_k = gamma_l->cluster_config[k];
     split_k = k;
+    max_splits = 5;
     if(n_k > 1){
-      if(2 >= ceil(split_frac * sqrt(n_k))) max_splits = 3;
+      if(sqrt(n_k) < 5) max_splits = sqrt(n_k);
+      else max_splits = 5;
+      //if(2 >= ceil(split_frac * sqrt(n_k))) max_splits = 3;
       // attempt only up to sqrt(n_k) * split_frac splits.
-      else max_splits = ceil(sqrt(n_k) * split_frac);
+      //else max_splits = ceil(sqrt(n_k) * split_frac);
       //Rcpp::Rcout << "max_splits = " << max_splits << endl;
-      for(int num_splits = 2; num_splits < max_splits; num_splits++){
+      for(int num_splits = 2; num_splits <= max_splits; num_splits++){
+        Rcpp::Rcout << "Starting num_splits = " << num_splits << endl;
         U.set_size(n_k, 1);
         means.set_size(1, num_splits);
         status = true;
@@ -117,16 +134,28 @@ Rcpp::List test_km(arma::vec ybar, const int T,
           
           Rcpp::Rcout << "k-means results: found " << init_new_clusters.size() << " sub-clusters " << endl;
           for(int kk = 0; kk < init_new_clusters.size(); kk++){
-            Rcpp::Rcout << "  sub-cluster " << kk << " : " ;
-            for(int ii = 0; ii < init_new_clusters[kk].size() ; ii++){
-              Rcpp::Rcout << " " << init_new_clusters[kk][ii] ;
-            }
+            Rcpp::Rcout << "  sub-cluster " << kk << " of size " << init_new_clusters[kk].size()<< " : " ;
+            //for(int ii = 0; ii < init_new_clusters[kk].size() ; ii++){
+            //  Rcpp::Rcout << " " << init_new_clusters[kk][ii] ;
+            //}
             Rcpp::Rcout << endl;
           }
           
           // now loop over init_new_clusters and find the connected components
           tmp_new_clusters.clear();
           for(int kk = 0; kk < init_new_clusters.size(); kk++){
+            Rcpp::Rcout << " init_sub_cluster " << kk << " of size " << init_new_clusters[kk].size() ;
+            // let's use new_Connected_Components now
+            connected_components.clear();
+            A_tmp = Submatrix(A_block, init_new_clusters[kk].size(), init_new_clusters[kk].size(), init_new_clusters[kk], init_new_clusters[kk]); // sub-matrix of A_block corresponding to the newly discovered sub-cluster
+            new_Connected_Components(A_tmp, init_new_clusters[kk].size(), init_new_clusters[kk], connected_components);
+            // now connected_components holds all of the connected components of the newly discovered sub-cluster
+            for(int new_k = 0; new_k < connected_components.size(); new_k++){
+              tmp_new_clusters.push_back(connected_components[new_k]);
+            }
+            // now tmp_new_clusters is of length connected_components.size() and each element is a new cluster that we want to work with
+            // below is the old code, that gives equivalent answer to new_Connected_Components
+            /*
             connected_components.clear();
             connected_components.push_back(std::vector<int>(1, init_new_clusters[kk][0])); // start connected_components with first element of the newly found cluster
             tmp_connected_components.clear();
@@ -157,8 +186,43 @@ Rcpp::List test_km(arma::vec ybar, const int T,
             for(int new_k = 0; new_k < connected_components.size(); new_k++){
               tmp_new_clusters.push_back(connected_components[new_k]);
             }
+            //Rcpp::Rcout << " is broken into " << connected_components.size() << " pieces of size " << endl;
+            Rcpp::Rcout << " is broken into " << endl;
+            for(int new_k = 0; new_k < connected_components.size() ; new_k++){
+              //Rcpp::Rcout << " " << connected_components[new_k].size() ;
+              Rcpp::Rcout << "   component " << new_k << " : ";
+              for(int ii = 0; ii < connected_components[new_k].size(); ii++){
+                Rcpp::Rcout << " " << connected_components[new_k][ii];
+              }
+              Rcpp::Rcout << endl;
+            }
+            */
+            /*
+            // let's try the new_Connected_Components function
+            A_tmp = Submatrix(A_block, init_new_clusters[kk].size(), init_new_clusters[kk].size(), init_new_clusters[kk], init_new_clusters[kk]);
+            test_components.clear();
+            new_Connected_Components(A_tmp, init_new_clusters[kk].size(), init_new_clusters[kk], test_components);
+            //new_Connected_Components(A_tmp,init_new_clusters[kk].size(), init_new_clusters[kk], test_components);
+            Rcpp::Rcout << "new connected components are" << endl;
+            for(int new_k = 0; new_k < test_components.size(); new_k++){
+              Rcpp::Rcout << "component " << new_k << " : " ;
+              for(int ii = 0; ii < test_components[new_k].size(); ii++){
+                Rcpp::Rcout << " " << test_components[new_k][ii] ;
+              }
+              Rcpp::Rcout << endl;
+            }
+           */
           } // closes loop over the number of clusters found by k-means
           //Rcpp::Rcout << "   got connected components following k-means split " << endl;
+/*
+          for(int new_k = 0; new_k < tmp_new_clusters.size(); new_k++){
+            Rcpp::Rcout << "new cluster " << new_k << " : " << endl;
+            for(int ii = 0; ii < tmp_new_clusters[new_k].size(); ii++){
+              Rcpp::Rcout << " " << tmp_new_clusters[new_k][ii] ;
+            }
+            Rcpp::Rcout << endl;
+          }
+*/
           
           // at this point we have tmp_new_clusters. we'd like to sort them by size
           tmp_nc_size.reset();

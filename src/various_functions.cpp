@@ -22,7 +22,7 @@ arma::mat Submatrix(arma::mat M, int n_row, int n_col, std::vector<int> row_inde
 }
 // will need to update these potentially
 
-void Connected_Components(arma::mat M, int n, int* components, int* count)
+void Connected_Components(const arma::mat M, const int n, int* components, int* count)
 {
   // Mark all the vertices as not visited
   bool *visited = new bool[n];
@@ -42,6 +42,83 @@ void Connected_Components(arma::mat M, int n, int* components, int* count)
   delete[] visited;
 }
 
+// to be used in the split functions.
+// reads in the sub-cluster found by the split (init_components) and forms the connected components (in the vector of vectors components)
+void new_Connected_Components(const arma::mat &M, const int n, std::vector<int> &init_components, std::vector<std::vector<int> >&components)
+{
+  //Rcpp::Rcout << "[new_Connected_Components]: starting" << std::endl;
+  int* count = new int;
+  int* tmp_components = new int[n];
+  bool* visited = new bool[n];
+  
+  for(int v = 0; v < n; v++){
+    visited[v] = false;
+  }
+  //Rcpp::Rcout << "[new_Connected_Components] : about to start DFS" << std::endl;
+  for(int v = 0; v < n; v++){
+    if(visited[v] == false){
+      DFSUtil(M,n,v,visited, tmp_components,count);
+      (*count)++;
+    }
+  }
+  //Rcpp::Rcout << "[new_Connected_Components]: Finished DFS" << std::endl;
+  // use tmp_components to indx init_components
+  components.clear();
+  components.resize(*count);
+  //int cluster_id = 0;
+  for(int i = 0; i < n; i++){
+    components[tmp_components[i]].push_back(init_components[i]);
+  }
+  delete count;
+  delete[] tmp_components;
+  delete[] visited;
+}
+
+// new_alpha_bar: new alphabar for the newly created clusters
+// orig_alpha_bar: the alphabars for all original clusters
+// this function will find nearest neighbors and also sort
+void get_subcluster_neighbors(const arma::mat &A_block, const int split_k,
+                              LPPartition gamma_l, const double a1 = 1.0, const double a2 = 1.0,
+                              const double nu_sigma = 1, const double lambda_sigma = 1,
+                              const double rho = 0.99, const double lambda = 1.0,
+                              const double eta = 1.0,
+                              std::vector<std::vector <int> > init_new_clusters, std::vector<std::vector<int> > new_clusters)
+{
+  int num_new_clusters = init_new_clusters.size();
+  int orig_K = orig_alpha_bar.size() ; // how many clusters originally
+  new_clusters.clear();
+  new_clusters.resize(num_new_clusters);
+  std::vector<int> k_star(num_new_clusters, -1); // holds the id of nearest neighbor to each subcluster
+  std::vector<int> tmp_nn; // holds potential nearest neighbors
+  std::vector<double> tmp_dist; // holds distance to potential nearest neighbor
+  arma::vec tmp_dist_vec = arma::zeros<vec>(1); // for sorting distances to nearest neighbors
+  arma::uvec tmp_dist_indices(1); // for getting the index after sorting
+  
+  new_clusters.clear();
+  new_clusters.resize(init_new_clusters.size());
+  std::vector<int> k_star(init_new_clusters.size(), -1);
+  
+  double tmp_alpha_bar = 0.0;
+  for(int new_k = 0; new_k < num_new_clusters; new_k++){
+    tmp_alpha_bar = new_alpha_bar[new_k]; // alpha-bar for the new sub-cluster
+    tmp_nn.clear();
+    tmp_dist.clear();
+    for(int kk = 0; kk < orig_K; kk++){
+      if(kk != split_k){
+        A_tmp = Submatrix(A_block, )
+      }
+    }
+  }
+  
+  
+  // need to loop over new_clusters
+  // then need to find adjacent
+
+  
+}
+
+
+/*
 void new_Connected_Components(arma::mat M, int n, std::vector<int> components, int count){
   // re-size components
   components.resize(n,0);
@@ -54,10 +131,11 @@ void new_Connected_Components(arma::mat M, int n, std::vector<int> components, i
     }
   }
 }
+*/
 
 
 
-void DFSUtil(arma::mat M, int n, int v, bool* visited, int* components, int* count)
+void DFSUtil(const arma::mat M, const int n, int v, bool* visited, int* components, int* count)
 {
   visited[v] = true;
   components[v] = *count;
@@ -66,8 +144,20 @@ void DFSUtil(arma::mat M, int n, int v, bool* visited, int* components, int* cou
       if(visited[i] == false)
         DFSUtil(M, n, i, visited, components, count);
 }
-
-
+/*
+void new_DFSUtil(arma::mat M, int n, int v, std::vector<bool> visited, std::vector<int> components, int count)
+{
+  visited[v] = true;
+  components[v] = count;
+  for(int i = 0; i < n; i++){
+    if(M(v,i) == 1.0){
+      if(visited[i] == false){
+        new_DFSUtil(M, n, i, visited, components, count);
+      }
+    }
+  }
+}
+*/
 arma::mat Distance_matrix(arma::vec alpha_hat, int nObs){
   arma::mat dist = arma::zeros<arma::mat>(nObs, nObs);
   for(int i = 0; i < nObs; i++){
@@ -83,18 +173,7 @@ arma::mat Distance_matrix(arma::vec alpha_hat, int nObs){
 
 
 
-void new_DFSUtil(arma::mat M, int n, int v, std::vector<bool> visited, std::vector<int> components, int count)
-{
-  visited[v] = true;
-  components[v] = count;
-  for(int i = 0; i < n; i++){
-    if(M(v,i) == 1.0){
-      if(visited[i] == false){
-        new_DFSUtil(M, n, i, visited, components, count);
-      }
-    }
-  }
-}
+
 
 std::vector<std::vector<int> > Alternative_Connected_Components(std::vector<int> remain, const arma::mat &A_block){
   std::vector<std::vector<int> > remain_clusters; 
