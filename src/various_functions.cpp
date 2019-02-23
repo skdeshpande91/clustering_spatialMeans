@@ -51,6 +51,7 @@ void new_Connected_Components(const arma::mat &M, const int n, std::vector<int> 
   int* tmp_components = new int[n];
   bool* visited = new bool[n];
   
+  *count = 0;
   for(int v = 0; v < n; v++){
     visited[v] = false;
   }
@@ -62,6 +63,7 @@ void new_Connected_Components(const arma::mat &M, const int n, std::vector<int> 
     }
   }
   //Rcpp::Rcout << "[new_Connected_Components]: Finished DFS" << std::endl;
+  
   // use tmp_components to indx init_components
   components.clear();
   components.resize(*count);
@@ -74,48 +76,6 @@ void new_Connected_Components(const arma::mat &M, const int n, std::vector<int> 
   delete[] visited;
 }
 
-// new_alpha_bar: new alphabar for the newly created clusters
-// orig_alpha_bar: the alphabars for all original clusters
-// this function will find nearest neighbors and also sort
-void get_subcluster_neighbors(const arma::mat &A_block, const int split_k,
-                              LPPartition gamma_l, const double a1 = 1.0, const double a2 = 1.0,
-                              const double nu_sigma = 1, const double lambda_sigma = 1,
-                              const double rho = 0.99, const double lambda = 1.0,
-                              const double eta = 1.0,
-                              std::vector<std::vector <int> > init_new_clusters, std::vector<std::vector<int> > new_clusters)
-{
-  int num_new_clusters = init_new_clusters.size();
-  int orig_K = orig_alpha_bar.size() ; // how many clusters originally
-  new_clusters.clear();
-  new_clusters.resize(num_new_clusters);
-  std::vector<int> k_star(num_new_clusters, -1); // holds the id of nearest neighbor to each subcluster
-  std::vector<int> tmp_nn; // holds potential nearest neighbors
-  std::vector<double> tmp_dist; // holds distance to potential nearest neighbor
-  arma::vec tmp_dist_vec = arma::zeros<vec>(1); // for sorting distances to nearest neighbors
-  arma::uvec tmp_dist_indices(1); // for getting the index after sorting
-  
-  new_clusters.clear();
-  new_clusters.resize(init_new_clusters.size());
-  std::vector<int> k_star(init_new_clusters.size(), -1);
-  
-  double tmp_alpha_bar = 0.0;
-  for(int new_k = 0; new_k < num_new_clusters; new_k++){
-    tmp_alpha_bar = new_alpha_bar[new_k]; // alpha-bar for the new sub-cluster
-    tmp_nn.clear();
-    tmp_dist.clear();
-    for(int kk = 0; kk < orig_K; kk++){
-      if(kk != split_k){
-        A_tmp = Submatrix(A_block, )
-      }
-    }
-  }
-  
-  
-  // need to loop over new_clusters
-  // then need to find adjacent
-
-  
-}
 
 
 /*
@@ -235,10 +195,89 @@ void Alternative_Connected_Components(int element, std::vector<std::vector<int> 
   return ;
 }
 
+// U is an n x d matrix, where rows represent observations
+// means is a d x num_splits matrix, where columns represent cluster centroids
+// final_status == false means that all of our runs of kmeans failed. final_status = true means we can proceed
 
+// outside of kmeans_repeat, we can actually return the clusters.
+// really we just need it to return means.
 
+void kmeans_repeat(arma::mat &U, arma::mat &means, bool &final_status,int num_splits,int reps){
+  int n = U.n_rows; // each row of U is an observation. note that arma::kmeans wants the observations stored as columns.
+  int d = U.n_cols; // dimension of the data
+  arma::mat tmp_means(d, num_splits); // arma::kmeans returns the centroids stored as column vectors
+  bool status = true;
+  final_status = false; // if it returns false,
+  arma::mat cluster_dist = arma::zeros<arma::vec>(n); // stores distance of each observation to each cluster centroid
+  arma::uvec cluster_dist_indices(n); // used to sort the distance from each point to each cluster centroid
+  
+  double score = 0.0;
+  double min_score = 0.0;
+  
+  for(int r = 0; r < reps; r++){
+    score = 0.0;
+    status = arma::kmeans(tmp_means, U.t(), num_splits, arma::random_subset, 10, false);
+    if(status == false){
+      Rcpp::Rcout << "kmeans failed";
+    } else{
+      final_status = true;
+      for(int i = 0; i < n; i++){
+        cluster_dist.zeros();
+        for(int k = 0; k < num_splits; k++){
+          cluster_dist(k) = arma::norm(U.row(i).t() - means.col(k));
+        }
+        cluster_dist_indices = arma::sort_index(cluster_dist, "ascend");
+        score += cluster_dist(cluster_dist_indices(0)) * cluster_dist(cluster_dist_indices(0)); // adds sq distance from U(i,) to its centroid to running sum
+      }
+      if(r == 0){
+        min_score = score;
+        means = tmp_means;
+      }
+      else if(score < min_score){
+        min_score = score;
+        means = tmp_means;
+      }
+    }
+  }
+}
 
-
+void kmeans_plus_plus(arma::mat &U, arma::mat &means, bool &final_status, int num_splits, int reps){
+  int n = U.n_rows;
+  int d = U.n_cols;
+ // dimension of the data
+  arma::mat tmp_means(d, num_splits); // arma::kmeans returns the centroids stored as column vectors
+  bool status = true;
+  final_status = false; // if it returns false,
+  arma::mat cluster_dist = arma::zeros<arma::vec>(n); // stores distance of each observation to each cluster centroid
+  arma::uvec cluster_dist_indices(n); // used to sort the distance from each point to each cluster centroid
+  
+  arma::mat dist2_mat = arma::mat(n,n);
+  for(int i = 0; i < n; i++){
+    for(int j = i; j < n; j++){
+      dist2_mat(i,j) = arma::norm(U.row(i) - U.row(j)) * arma::norm(U.row(i) - U.row(j));
+    }
+  }
+  arma::vec cum_prob = arma::zeros<arma::vec>(n);
+  arma::vec tmp_u = arma::randu<arma::vec>(1);
+  std::vector<int> already_included(n,0);
+  int starting_index = 0;
+  double score = 0.0;
+  double min_score = 0.0;
+  for(int r = 0; r < reps; r++){
+    // draw a center
+    tmp_u = arma::randu<arma::vec>(1);
+    starting_index = floor(tmp_u(0)*n);
+    already_included[starting_index] = 1;
+    // starting point is indexed by floor(n*tmp_u(0))
+    means.col(0) = U.row(starting_index).t();
+    // now get the cumulative probabilities
+    cum_prob = arma::cumsum(dist2_mat.col(starting_index))/arma::accu(dist2_mat.col(starting_index));
+    for(int ns = 1; ns < num_splits; ns++){
+      tmp_u = arma::randu<arma::vec>(1);
+      // find first index n where tmp_u > cum_prob[n]. then use n-1
+    }
+  } // closes loop over r
+}
 
 
 

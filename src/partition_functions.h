@@ -67,7 +67,7 @@ void best_merge(merge_info &mi, LPPartition candidate, const int current_l, cons
 
 bool sanity_check(LPPartition partition);
 
-
+void get_subcluster_neighbor(std::vector<std::vector<int> > &init_new_clusters, std::vector<std::vector<int> > &new_clusters, std::vector<int> &kstar, const int split_k, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2);
 // add a function to update_w
 
 

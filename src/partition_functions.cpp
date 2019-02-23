@@ -1606,3 +1606,65 @@ bool sanity_check(LPPartition partition){
   return flag;
 }
 
+// this function will find nearest neighbors of each new subcluster and also sort them based on how close they are to their neighbors
+void get_subcluster_neighbor(std::vector<std::vector<int> > &init_new_clusters, std::vector<std::vector<int> > &new_clusters, std::vector<int> &k_star, const int split_k, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2)
+{
+  int num_new_clusters = init_new_clusters.size();
+  new_clusters.clear();
+  new_clusters.resize(num_new_clusters);
+  k_star.clear();
+  k_star.resize(num_new_clusters,-1);
+  std::vector<int> tmp_k_star(num_new_clusters,-1);
+  arma::mat A_tmp = arma::zeros<arma::mat>(num_new_clusters, num_new_clusters);
+  double tmp_alpha_bar = 0.0; // holds the new alphabar estiate for subcluster
+  std::vector<int> tmp_nn; // holds potential nearest neighbors
+  std::vector<double> tmp_dist; // holds distance to potential nearest neighbor
+  arma::vec tmp_dist_vec = arma::zeros<vec>(1); // for sorting distances to nearest neighbors for single subcluster
+  arma::uvec tmp_dist_indices(1); // for getting the index after sorting
+  
+  arma::vec dist_vec = arma::zeros<vec>(num_new_clusters); // holds distances from each subcluster to nearest neighbor
+  arma::uvec dist_indices(num_new_clusters);
+  
+  for(int new_k = 0; new_k < num_new_clusters; new_k++){
+    tmp_alpha_bar = alpha_bar_func(init_new_clusters[new_k], gamma_l, T, A_block, rho, a1, a2);
+    tmp_nn.clear();
+    tmp_dist.clear();
+    for(int kk = 0; kk < gamma_l->K; kk++){
+      if(kk != split_k){
+        A_tmp = Submatrix(A_block, init_new_clusters[new_k].size(), gamma_l->cluster_config[kk], init_new_clusters[new_k], gamma_l->clusters[kk]);
+        if(any(vectorise(A_tmp) == 1)){
+          tmp_nn.push_back(kk);
+          tmp_dist.push_back(abs(tmp_alpha_bar - gamma_l->alpha_bar[kk]));
+        }
+      } // closes if checking that kk != split_k
+    } // closes loop over the original cluster ids (kk)
+    if(tmp_nn.size() > 0){
+      // new subcluster new_k is adjacent to an existing cluster
+      tmp_dist_vec.reset();
+      tmp_dist_indices.reset();
+      tmp_dist_vec.set_size(tmp_dist.size());
+      tmp_dist_indices.set_size(tmp_dist.size());
+      for(int kk = 0; kk < tmp_dist.size(); kk++){
+        tmp_dist_vec(kk) = tmp_dist[kk];
+      }
+      tmp_dist_indices = arma::sort_index(tmp_dist_vec, "ascend");
+      tmp_k_star[new_k] = tmp_nn[tmp_dist_indices(0)];
+      dist_vec(new_k) = tmp_dist_vec(tmp_dist_indices(0)); // distance from subcluster new_k to its nearest neighbor
+    } else{
+      // new subcluster new_k is adjacent to no other cluster
+      // we will set dist[new_k] = 0.0 so that when we sort them, these subclusters come first in the order
+      tmp_k_star[new_k] = -1;
+      dist_vec(new_k) = 0.0;
+    }
+  } // closes loop over new clusters.
+    // now the vector dist_vec contains the distance of each subcluster to nearest neighbor
+  dist_indices = arma::sort_index(dist_vec, "ascend");
+  for(int new_k = 0; new_k < num_new_clusters; new_k++){
+    // we want get init_new_clusters[dist_indices(new_k)]
+    for(int ii = 0; ii < init_new_clusters[dist_indices(new_k)].size(); ii++){
+      new_clusters[new_k].push_back(init_new_clusters[dist_indices(new_k)][ii]);
+    } // closes loop over the elements in the subcluster
+    k_star[new_k] = tmp_k_star[dist_indices(new_k)];
+  } // closes loop over the new subclusters
+  
+}
