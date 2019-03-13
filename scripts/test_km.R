@@ -10,5 +10,26 @@ load("data/large_example_1.RData")
 
 sourceCpp("src/test_km.cpp")
 
-test <- test_km(ybar_1_large[,1], T = 10, A_block = A_block_large, gamma_init = gamma_1_large, split_frac = 0.5)
+
+# Testing get_km_splits that has been updated with kmeans_repeat
+# previously had observed running the basic test_km was returning a *different* set of splits
+# than the one given by get_km_splits. The latter was always worse.
+
+test_get_km <- test_km_particle(ybar_1_large[,1], T = 10, A_block = A_block_large, L = 10, gamma_1_large, a1 = 1/20, a2 = 20)
+
+# Now try for a range of hyper-parameters values.
+
+
+
+test_2 <- test_km(ybar_1_large[,1], T = 10, A_block = A_block_large, gamma_init = gamma_1_large, reps = 500)
+
+
+
+test_0 <- test_km_particle(ybar_1_large[,1], T = 10, A_block = A_block_large, L = 10, gamma_init = gamma_1_large, reps = 500)
+
+
+
+test_1 <- test_kmpp(ybar_1_large[,1], T = 10, A_block = A_block_large, gamma_init = gamma_1_large, reps = 500)
+
+
 

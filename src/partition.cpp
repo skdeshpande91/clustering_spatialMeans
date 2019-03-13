@@ -349,8 +349,10 @@ void Partition::alpha_postmean(int cluster_id, const arma::vec &ybar, const int 
   int n_k = cluster_config[cluster_id];
   if(n_k == 1){
     //alpha_hat[clusters[cluster_id][0]] = T * ybar[clusters[cluster_id][0]]/(T + 1.0/(a1/(1-rho) + a2));
-    alpha_hat[clusters[cluster_id][0]] = T * ybar[clusters[cluster_id][0]]/(T + 1.0/( (a1/(1-rho) + a2)));
-    alpha_bar[cluster_id] = (1.0/a1) * (1 - rho) * alpha_hat[clusters[cluster_id][0]]/( 1.0/a1 * (1.0 - rho) + 1.0/a2);
+    //alpha_hat[clusters[cluster_id][0]] = T * ybar[clusters[cluster_id][0]]/(T + 1.0/( (a1/(1-rho) + a2)));
+    //alpha_bar[cluster_id] = (1.0/a1) * (1.0 - rho) * alpha_hat[clusters[cluster_id][0]]/( 1.0/a1 * (1.0 - rho) + 1.0/a2);
+    alpha_hat[clusters[cluster_id][0]] = (double) T * ybar[clusters[cluster_id][0]]/( (double) T + (1.0 - rho)/(a1 + a2 * (1.0 - rho)));
+    alpha_bar[cluster_id] = (1.0/a1) * (1.0 - rho) * alpha_hat[clusters[cluster_id][0]]/(1.0/a2 + (1.0 - rho)/a1);
   } else {
     arma::mat A_block_k = Submatrix(A_block, n_k, n_k, clusters[cluster_id], clusters[cluster_id]); // pulls out the relevant submatrix
     arma::vec row_sums = arma::zeros<vec>(n_k);
@@ -368,6 +370,19 @@ void Partition::alpha_postmean(int cluster_id, const arma::vec &ybar, const int 
     Omega_alpha.diag() += 1.0 - rho;
     
     arma::mat V_inv = 1.0/a1 * Omega_alpha;
+    V_inv -= (1.0 - rho) * (1.0 - rho)/a1 * a2/(a1 + a2 * (1.0 - rho) * (double) n_k);
+    V_inv.diag() += (double) T;
+    arma::mat V = arma::inv_sympd(V_inv);
+    arma::vec tmp_alpha = ( (double) T) * V * y_vec;
+    double tmp_alpha_sum = 0.0;
+    for(int i = 0; i < n_k; i++){
+      alpha_hat[clusters[cluster_id][i]] = tmp_alpha(i);
+      tmp_alpha_sum += tmp_alpha(i);
+    }
+    alpha_bar[cluster_id] = (1.0/a1) * (1.0 - rho) * tmp_alpha_sum/(1.0/a2 + n_k * (1.0 - rho)/a1);
+    
+    /*
+    arma::mat V_inv = 1.0/a1 * Omega_alpha;
     V_inv -= 1.0/(a1 * a1) * (1 - rho) * (1 - rho)/(1 + 1.0/a1 * a2 * n_k * (1 - rho));
     V_inv.diag()+=T;
     arma::mat V = inv_sympd(V_inv);
@@ -377,8 +392,8 @@ void Partition::alpha_postmean(int cluster_id, const arma::vec &ybar, const int 
       alpha_hat[clusters[cluster_id][i]] = tmp_alpha(i);
       tmp_alpha_sum += tmp_alpha(i);
     }
-    //alpha_bar[cluster_id] = (1.0/a1 + (1 - rho)*tmp_alpha_sum)/(1.0/a2 + n_k*(1-rho)/a1);
     alpha_bar[cluster_id] = (1.0/a1 * tmp_alpha_sum * (1 - rho))/(1.0/a2 + n_k * (1-rho)/a1);
+    */
   }
 }
 
