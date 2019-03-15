@@ -126,7 +126,9 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       get_spectral_split(spec_si, particle_set[l], T, A_block, rho, a1, a2, 100);
       delete spec_split_candidate;
       spec_split_candidate = new Partition(particle_set[l]);
-      best_split(spec_si, spec_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      //best_split(spec_si, spec_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      best_split2(spec_si, spec_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda, true);
+
       spec_split_obj = w[l]*total_log_post(spec_split_candidate, nu_sigma, lambda_sigma) + lambda * Entropy(l, spec_split_candidate, particle_set, w);
       spec_split_flag = Partition_Equal(spec_split_candidate, particle_set[l]);
       accepted_obj = spec_split_obj;
@@ -136,7 +138,9 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       get_tail_split(tail_si, particle_set[l], T, A_block, rho, a1, a2, 0.025);
       delete tail_split_candidate;
       tail_split_candidate = new Partition(particle_set[l]);
-      best_split(tail_si, tail_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      //best_split(tail_si, tail_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      best_split2(tail_si, tail_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda, true);
+
       tail_split_obj = w[l]*total_log_post(tail_split_candidate, nu_sigma, lambda_sigma) + lambda * Entropy(l, tail_split_candidate, particle_set,w);
       tail_split_flag = Partition_Equal(tail_split_candidate, particle_set[l]);
       if(tail_split_obj > accepted_obj){
@@ -148,7 +152,9 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       get_km_split(km_si, particle_set[l], T, A_block, rho, a1, a2, 1000);
       delete km_split_candidate;
       km_split_candidate = new Partition(particle_set[l]);
-      best_split(km_si, km_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      //best_split(km_si, km_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      best_split2(km_si, km_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda, true);
+
       km_split_obj = w[l]*total_log_post(km_split_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(l, km_split_candidate, particle_set,w);
       km_split_flag = Partition_Equal(km_split_candidate, particle_set[l]);
       if(km_split_obj > accepted_obj){
@@ -171,7 +177,8 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       get_border(bi, particle_set[l], T, A_block, rho, a1, a2);
       delete border_candidate;
       border_candidate = new Partition(particle_set[l]);
-      best_split(bi, border_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      //best_split(bi, border_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      best_split2(bi, border_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda, false);
       border_obj = w[l]*total_log_post(border_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(l, border_candidate, particle_set,w);
       border_flag = Partition_Equal(border_candidate, particle_set[l]);
       if(border_obj > accepted_obj){
@@ -183,7 +190,8 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       get_island(isl_i, particle_set[l], T, A_block, rho, a1, a2, 0.05);
       delete island_candidate;
       island_candidate = new Partition(particle_set[l]);
-      best_split(isl_i, island_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      //best_split(isl_i, island_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);
+      best_split2(isl_i, island_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda, false);
       island_obj = w[l]*total_log_post(island_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(l, island_candidate, particle_set,w);
       island_flag = Partition_Equal(island_candidate, particle_set[l]);
       if(island_obj > accepted_obj){

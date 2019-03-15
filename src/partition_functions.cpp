@@ -78,66 +78,6 @@ void get_unik_particles(std::vector<std::vector<int> > &particle_map, std::vecto
   
 }
 
-
-/*
-void get_unik_particles(std::vector<LPPartition> &unik_particles, std::vector<double> &p_star, std::vector<int> &counts, std::vector<LPPartition> particle_set, std::vector<double> w)
-{
-  unik_particles.clear();
-  p_star.clear();
-  counts.clear();
-  LPPartition tmp_partition = new Partition(particle_set[0]);
-  std::vector<LPPartition> tmp_unik_particles;
-  tmp_unik_particles.push_back(tmp_partition);
-  
-  //std::vector<LPPartition> tmp_unik_particles(1,particle_set[0]);
-  std::vector<double> tmp_p_star(1, w[0]);
-  std::vector<int> tmp_counts(1,1);
-
-  int num_unik_particles = 1;
-  int counter = 0;
-  int L = particle_set.size();
-  for(int l = 1; l < L; l++){
-    //Rcpp::Rcout << "[get_unik_particles]: l = " << l << endl;
-    counter = 0;
-    for(int ul = 0; ul < num_unik_particles; ul++){
-      if(Partition_Equal(particle_set[l], tmp_unik_particles[ul]) == 1){
-        //Rcpp::Rcout << "    particle " << l << " equals unik particle " << ul << endl;
-        tmp_p_star[ul] += w[l];
-        tmp_counts[ul] ++;
-        break;
-      } else{
-        counter++;
-      }
-    }
-    if(counter == num_unik_particles){
-      //Rcpp::Rcout << "[get_unik_particles]: Found a unique particle!" << endl;
-      //tmp_unik_particles.push_back(particle_set[l]);
-      delete tmp_partition;
-      tmp_partition = new Partition(particle_set[l]);
-      tmp_unik_particles.push_back(tmp_partition);
-      tmp_p_star.push_back(w[l]);
-      tmp_counts.push_back(1);
-      num_unik_particles++;
-    }
-  }
-  //Rcpp::Rcout << "[get_unik_particles]: Got " << num_unik_particles << " unique particles" << endl;
-  //Rcpp::Rcout << "[get_unik_particles]: tmp_unik_particles.size() = " << tmp_unik_particles.size() << endl;
-  // while we're at it, let's sort the particle set
-  arma::vec p_star_vec = arma::zeros<vec>(num_unik_particles);
-  arma::uvec indices(num_unik_particles);
-  for(int l = 0; l < num_unik_particles; l++){
-    p_star_vec(l) = tmp_p_star[l];
-  }
-  indices = arma::sort_index(p_star_vec, "descend");
-  for(int l = 0; l < num_unik_particles; l++){
-    unik_particles.push_back(tmp_unik_particles[indices(l)]);
-    p_star.push_back(tmp_p_star[indices(l)]);
-    counts.push_back(tmp_counts[indices(l)]);
-  }
-  
-}
-*/
-
 // function to compute entropy
 // when we replace the (current_l)^th particle with the candidate_clusters
 //
@@ -316,8 +256,6 @@ void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, con
 }
 
 
-
-
 void get_island(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double island_frac)
 {
   si.num_splits = 0;
@@ -326,10 +264,7 @@ void get_island(split_info &si, LPPartition gamma_l, const int T, const arma::ma
   si.new_clusters.clear();
   
   int orig_K = gamma_l->K;
-  int max_splits = 5;
   int n_k = 1;
-  double min_score = 0.0;
-  int split_k = 0;
   
   double alpha_bar = 0.0; // holds the cluster mean
   arma::vec distance = arma::zeros<arma::vec>(1); // holds distance of each alpha-hat from the overall cluster mean
@@ -393,8 +328,6 @@ void get_island(split_info &si, LPPartition gamma_l, const int T, const arma::ma
 }
 
 
-
-
 void get_border(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2)
 {
   
@@ -404,9 +337,7 @@ void get_border(split_info &si, LPPartition gamma_l, const int T, const arma::ma
   si.new_clusters.clear();
 
   int orig_K = gamma_l->K;
-  int max_splits = 5;
   int n_k = 1;
-  double min_score = 0.0;
   int split_k = 0;
   
   arma::mat A_sub = arma::zeros<arma::mat>(1,1); // sub-matrix of A_sub used to see if clusters k and kk are adjacenct
@@ -671,9 +602,7 @@ void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma
   si.nearest_neighbor.clear();
   
   int orig_K = gamma_l->K;
-  int max_splits = 5;
   int n_k = 1;
-  double min_score = 0.0;
   int split_k = 0;
   
   arma::vec alpha_hat_cluster = arma::zeros<arma::vec>(1);
@@ -1033,7 +962,132 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
     candidate->Copy_Partition(particle_set[current_l]);
   } // closes if/else checking that there are splits proposed
 }
-//void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double a_sigma, const double nu_sigma, const double eta, const double lambda)
+
+
+// A new version of best_split
+void best_split2(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda, const bool merge_flag)
+{
+  if(si.num_splits > 0){
+    LPPartition max_candidate = new Partition(particle_set[current_l]);
+    double max_objective = w[current_l]*total_log_post(max_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, max_candidate, particle_set, w);
+    LPPartition tmp_candidate = new Partition(particle_set[current_l]);
+    double tmp_objective = 0.0;
+    
+    
+    
+    std::vector<int> k_star; // holds indices of nearest neighbors
+    int num_new_clusters = 0; // number of new sub-clusters created by the split
+    int split_k = 0; // which cluster is being split
+    bool sanity_flag = true;
+    
+    
+    if(merge_flag == false){
+      // we will never perform progressive merges. instead we split and merge according to what is stored in si.nearest_neighbor
+      for(int split_ix = 0; split_ix < si.num_splits; split_ix++){
+        delete tmp_candidate;
+        tmp_candidate = new Partition(particle_set[current_l]);
+        tmp_candidate->Split_Merge(si.split_k[split_ix], si.new_clusters[split_ix], si.nearest_neighbor[split_ix], ybar, T, A_block, rho, a1, a2, eta);
+        sanity_flag = sanity_check(tmp_candidate);
+        if(sanity_flag == false){
+          Rcpp::Rcout << "[best_split]: Before even trying merges, something is wrong about this split!" << endl;
+          Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
+          for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
+            Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
+            for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
+              Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
+            }
+            Rcpp::Rcout << endl;
+          }
+          Rcpp::Rcout << "Before split candidate is" << endl;
+          particle_set[current_l]->Print_Partition(nu_sigma, lambda_sigma);
+          Rcpp::Rcout << "The candidate is now" << endl;
+          tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+          Rcpp::stop("Terminating");
+        } // closes if checking whether there is something wrong with the partition
+        tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+        if(tmp_objective > max_objective){
+          delete max_candidate;
+          max_candidate = new Partition(tmp_candidate);
+          max_objective = tmp_objective;
+        }
+      } // closes loop over all of the possible splits
+    } else{
+      std::vector<int> k_star; // holds the progessively changing indices of the newly formed clusters
+      for(int split_ix = 0; split_ix < si.num_splits; split_ix++){
+        num_new_clusters = si.new_clusters[split_ix].size();
+        k_star.clear();
+        k_star.resize(num_new_clusters,-1);
+        
+        // first try to split all of the candidates but don't do any merges
+        delete tmp_candidate;
+        tmp_candidate = new Partition(particle_set[current_l]);
+        tmp_candidate->Split_Merge(si.split_k[split_ix], si.new_clusters[split_ix], k_star, ybar, T, A_block, rho, a1, a2, eta);
+        sanity_flag = sanity_check(tmp_candidate);
+        if(sanity_flag == false){
+          Rcpp::Rcout << "[best_split]: Before even trying merges, something is wrong about this split!" << endl;
+          Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
+          for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
+            Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
+            for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
+              Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
+            }
+            Rcpp::Rcout << endl;
+          }
+          Rcpp::Rcout << "Before split candidate is" << endl;
+          particle_set[current_l]->Print_Partition(nu_sigma, lambda_sigma);
+          Rcpp::Rcout << "The candidate is now" << endl;
+          tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+          Rcpp::stop("Terminating");
+        } // closes if checking whether there is something wrong with the partition
+        tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+        if(tmp_objective > max_objective){
+          delete max_candidate;
+          max_candidate = new Partition(tmp_candidate);
+          max_objective = tmp_objective;
+        }
+        // now try to do all of the proposed merges
+        for(int nc_ix = 0; nc_ix < num_new_clusters; nc_ix++){
+          if(si.nearest_neighbor[split_ix][nc_ix] != -1){
+            k_star[nc_ix] = si.nearest_neighbor[split_ix][nc_ix];
+            delete tmp_candidate;
+            tmp_candidate = new Partition(particle_set[current_l]);
+            tmp_candidate->Split_Merge(si.split_k[split_ix], si.new_clusters[split_ix], k_star, ybar, T, A_block, rho, a1, a2, eta);
+            sanity_flag = sanity_check(tmp_candidate);
+            if(sanity_flag == false){
+              Rcpp::Rcout << "[best_split]: Before even trying merges, something is wrong about this split!" << endl;
+              Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
+              for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
+                Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
+                for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
+                  Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
+                }
+                Rcpp::Rcout << endl;
+              }
+              Rcpp::Rcout << "Before split candidate is" << endl;
+              particle_set[current_l]->Print_Partition(nu_sigma, lambda_sigma);
+              Rcpp::Rcout << "The candidate is now" << endl;
+              tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+              Rcpp::stop("Terminating");
+            } // closes if checking whether there is something wrong with the partition
+            tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+            if(tmp_objective > max_objective){
+              delete max_candidate;
+              max_candidate = new Partition(tmp_candidate);
+              max_objective = tmp_objective;
+            }
+          } // closes if checking to see if we need to update k_star
+        } // closes loop over all of the new sub-clusters
+      } // closes loop over each potential split
+    } // close else part checking whether we do progressive merges or not
+    candidate->Copy_Partition(max_candidate);
+  } else{
+    candidate->Copy_Partition(particle_set[current_l]);
+  } // closes if/else checking that we actually try splits at all
+  
+}
+
+
+
 void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda)
 {
   
@@ -1119,46 +1173,76 @@ void get_subcluster_neighbor(std::vector<std::vector<int> > &init_new_clusters, 
   arma::vec dist_vec = arma::zeros<vec>(num_new_clusters); // holds distances from each subcluster to nearest neighbor
   arma::uvec dist_indices(num_new_clusters);
   
-  for(int new_k = 0; new_k < num_new_clusters; new_k++){
-    tmp_alpha_bar = alpha_bar_func(init_new_clusters[new_k], gamma_l, T, A_block, rho, a1, a2);
-    tmp_nn.clear();
-    tmp_dist.clear();
-    for(int kk = 0; kk < gamma_l->K; kk++){
-      if(kk != split_k){
-        A_tmp = Submatrix(A_block, init_new_clusters[new_k].size(), gamma_l->cluster_config[kk], init_new_clusters[new_k], gamma_l->clusters[kk]);
-        if(any(vectorise(A_tmp) == 1)){
-          tmp_nn.push_back(kk);
-          tmp_dist.push_back(abs(tmp_alpha_bar - gamma_l->alpha_bar[kk]));
+  // we need to handle the case where there are no other existing sub-clusters
+  int orig_K = gamma_l->K;
+  if(orig_K > 1){
+    // now it makes sense to re-order the new sub-cluster by their distance to their neighbors
+    for(int new_k = 0; new_k < num_new_clusters; new_k++){
+      tmp_alpha_bar = alpha_bar_func(init_new_clusters[new_k], gamma_l, T, A_block, rho, a1, a2);
+      tmp_nn.clear();
+      tmp_dist.clear();
+      for(int kk = 0; kk < orig_K; kk++){
+        if(kk != split_k){
+          A_tmp = Submatrix(A_block, init_new_clusters[new_k].size(), gamma_l->cluster_config[kk], init_new_clusters[new_k], gamma_l->clusters[kk]);
+          if(any(vectorise(A_tmp) == 1)){
+            tmp_nn.push_back(kk);
+            tmp_dist.push_back(abs(tmp_alpha_bar - gamma_l->alpha_bar[kk]));
+          }
+        } // closes if checking that kk != split_k
+      } // closes loop over the original cluster ids (kk)
+      if(tmp_nn.size() > 0){
+        // new subcluster new_k is adjacent to an existing cluster
+        tmp_dist_vec.reset();
+        tmp_dist_indices.reset();
+        tmp_dist_vec.set_size(tmp_dist.size());
+        tmp_dist_indices.set_size(tmp_dist.size());
+        for(int kk = 0; kk < tmp_dist.size(); kk++){
+          tmp_dist_vec(kk) = tmp_dist[kk];
         }
-      } // closes if checking that kk != split_k
-    } // closes loop over the original cluster ids (kk)
-    if(tmp_nn.size() > 0){
-      // new subcluster new_k is adjacent to an existing cluster
-      tmp_dist_vec.reset();
-      tmp_dist_indices.reset();
-      tmp_dist_vec.set_size(tmp_dist.size());
-      tmp_dist_indices.set_size(tmp_dist.size());
-      for(int kk = 0; kk < tmp_dist.size(); kk++){
-        tmp_dist_vec(kk) = tmp_dist[kk];
+        tmp_dist_indices = arma::sort_index(tmp_dist_vec, "ascend");
+        tmp_k_star[new_k] = tmp_nn[tmp_dist_indices(0)];
+        dist_vec(new_k) = tmp_dist_vec(tmp_dist_indices(0)); // distance from subcluster new_k to its nearest neighbor
+      } else{
+        // new subcluster new_k is adjacent to no other cluster
+        // we will set dist[new_k] = 0.0 so that when we sort them, these subclusters come first in the order
+        tmp_k_star[new_k] = -1;
+        dist_vec(new_k) = 0.0;
       }
-      tmp_dist_indices = arma::sort_index(tmp_dist_vec, "ascend");
-      tmp_k_star[new_k] = tmp_nn[tmp_dist_indices(0)];
-      dist_vec(new_k) = tmp_dist_vec(tmp_dist_indices(0)); // distance from subcluster new_k to its nearest neighbor
-    } else{
-      // new subcluster new_k is adjacent to no other cluster
-      // we will set dist[new_k] = 0.0 so that when we sort them, these subclusters come first in the order
-      tmp_k_star[new_k] = -1;
-      dist_vec(new_k) = 0.0;
-    }
-  } // closes loop over new clusters.
+    } // closes loop over the new sub-clusters
     // now the vector dist_vec contains the distance of each subcluster to nearest neighbor
-  dist_indices = arma::sort_index(dist_vec, "ascend");
-  for(int new_k = 0; new_k < num_new_clusters; new_k++){
-    // we want get init_new_clusters[dist_indices(new_k)]
-    for(int ii = 0; ii < init_new_clusters[dist_indices(new_k)].size(); ii++){
-      new_clusters[new_k].push_back(init_new_clusters[dist_indices(new_k)][ii]);
-    } // closes loop over the elements in the subcluster
-    k_star[new_k] = tmp_k_star[dist_indices(new_k)];
-  } // closes loop over the new subclusters
+    dist_indices = arma::sort_index(dist_vec, "ascend");
+    for(int new_k = 0; new_k < num_new_clusters; new_k++){
+      // we want get init_new_clusters[dist_indices(new_k)]
+      for(int ii = 0; ii < init_new_clusters[dist_indices(new_k)].size(); ii++){
+        new_clusters[new_k].push_back(init_new_clusters[dist_indices(new_k)][ii]);
+      } // closes loop over the elements in the subcluster
+      k_star[new_k] = tmp_k_star[dist_indices(new_k)];
+    } // closes loop over the new subclusters
+  } else {
+    // gamma_l consisted of only one block. we may as well arrange the clusters based on their variance
+    arma::vec alpha_hat_cluster = arma::zeros<arma::vec>(1); // will hold the alpha_hats from each clusters
+    arma::vec cluster_var = arma::zeros<arma::vec>(num_new_clusters);
+    arma::uvec var_indices(num_new_clusters);
+    for(int new_k = 0; new_k < num_new_clusters; new_k++){
+      alpha_hat_cluster.reset();
+      alpha_hat_cluster.set_size(init_new_clusters[new_k].size());
+      for(int ii = 0; ii < init_new_clusters[new_k].size(); ii++){
+        alpha_hat_cluster(ii) = gamma_l->alpha_hat[init_new_clusters[new_k][ii]];
+      }
+      cluster_var[new_k] = arma::var(alpha_hat_cluster);
+    }
+    var_indices = arma::sort_index(cluster_var, "descend");
+    for(int new_k = 0; new_k < num_new_clusters; new_k++){
+      for(int ii = 0; ii < init_new_clusters[var_indices(new_k)].size(); ii++){
+        new_clusters[new_k].push_back(init_new_clusters[var_indices(new_k)][ii]);
+      }
+      k_star[new_k] = -1;
+    }
+  } // closes else part checking whether original partition has one cluster or not
+  
+  
+  
+  
+
   
 }
