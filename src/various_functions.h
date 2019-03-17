@@ -21,7 +21,7 @@ std::vector<std::vector<int> > Alternative_Connected_Components(std::vector<int>
 void Alternative_Connected_Components(int element, std::vector<std::vector<int> >& left_new_clusters, const arma::mat &A_block);
 
 
-void kmeans_repeat(arma::mat &U, arma::mat &means, bool &final_status, int num_splits, int reps);
-
+void kmeans_repeat(arma::mat &U, arma::mat &means, bool &final_status, double &min_score, int num_splits, int reps);
+void kmeans_plus_plus(arma::mat &U, arma::mat &means, bool &final_status, double &min_score, int num_splits,int reps);
 
 #endif /* various_functions_hpp */

@@ -44,38 +44,25 @@ double alpha_bar_func(std::vector<int> new_cluster, LPPartition gamma_l, const i
 void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, const int L, const double nu_sigma, const double lambda_sigma, const double lambda);
 
 
-void get_island(split_info &si, LPPartition gamma_l, const arma::mat &A_block);
-void get_border(split_info &si, LPPartition gamma_l, const arma::mat &A_block);
+void get_island(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double island_frac);
+void get_border(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2);
 //void get_merge(split_info &si, LPPartition gamma_l, const arma::mat &A_block);
 void get_merge(merge_info &mi, LPPartition gamma_l, const arma::mat &A_block);
-void get_spectral_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double split_frac);
-void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double split_frac);
-void get_km_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double split_frac);
+void get_spectral_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const int reps);
+void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double tail_frac);
+void get_km_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const int reps);
 
 
-// used as a final convergence check
-// essentially is get_island but tries to remove every block group
-void get_local(split_info &si, LPPartition gamma_l, const arma::mat &A_block);
 
 
-//void best_split(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double a_sigma, const double nu_sigma, const double eta, const double lambda);
+
 void best_split(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda);
+void best_split2(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda, const bool merge_flag);
 
-
-//void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double a_sigma, const double nu_sigma, const double eta, const double lambda);
 void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda);
 
 bool sanity_check(LPPartition partition);
 
 void get_subcluster_neighbor(std::vector<std::vector<int> > &init_new_clusters, std::vector<std::vector<int> > &new_clusters, std::vector<int> &kstar, const int split_k, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2);
-// add a function to update_w
 
-
-
-/*
-void get_island(LPPartition candidate, const int current_l, const std::vect<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a, const double lambda, const double island_frac);
-void get_border(LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a, const double lambda);
-void get_merge(LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a, const double lambda);
-void get_split(LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a, const double lambda);
-*/
 

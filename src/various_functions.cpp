@@ -6,7 +6,7 @@
 //
 
 #include "various_functions.h"
-
+using std::endl;
 
 arma::mat Submatrix(arma::mat M, int n_row, int n_col, std::vector<int> row_index, std::vector<int> col_index)
 {
@@ -202,81 +202,196 @@ void Alternative_Connected_Components(int element, std::vector<std::vector<int> 
 // outside of kmeans_repeat, we can actually return the clusters.
 // really we just need it to return means.
 
-void kmeans_repeat(arma::mat &U, arma::mat &means, bool &final_status,int num_splits,int reps){
+void kmeans_repeat(arma::mat &U, arma::mat &means, bool &final_status, double &min_score, int num_splits,int reps){
   int n = U.n_rows; // each row of U is an observation. note that arma::kmeans wants the observations stored as columns.
   int d = U.n_cols; // dimension of the data
   arma::mat tmp_means(d, num_splits); // arma::kmeans returns the centroids stored as column vectors
   bool status = true;
   final_status = false; // if it returns false,
-  arma::mat cluster_dist = arma::zeros<arma::vec>(n); // stores distance of each observation to each cluster centroid
-  arma::uvec cluster_dist_indices(n); // used to sort the distance from each point to each cluster centroid
+  arma::vec cluster_dist = arma::zeros<arma::vec>(num_splits); // stores distance of each observation to each cluster centroid
+  arma::uvec cluster_dist_indices(num_splits); // used to sort the distance from each point to each cluster centroid
+  arma::vec cluster_assignment(n); // holds the assignment of each observation
+  cluster_assignment.fill(-1); // initialize with really
+  arma::mat cluster_means = arma::zeros<arma::mat>(num_splits, d); // each row is the mean of elements in cluster
+  arma::vec cluster_counts = arma::zeros<arma::vec>(num_splits);
   
   double score = 0.0;
-  double min_score = 0.0;
-  
+  min_score = 0.0;
   for(int r = 0; r < reps; r++){
+    //Rcpp::Rcout << "r = " << r << endl;
     score = 0.0;
     status = arma::kmeans(tmp_means, U.t(), num_splits, arma::random_subset, 10, false);
+    // reset the vectors for determining what's in each sub-cluster
+    cluster_assignment.fill(-1);
+    cluster_counts.zeros();
+    cluster_means.zeros();
+    cluster_dist.zeros();
+    cluster_dist_indices.zeros();
+    
     if(status == false){
       Rcpp::Rcout << "kmeans failed";
     } else{
       final_status = true;
       for(int i = 0; i < n; i++){
+        //Rcpp::Rcout << "i = " << i << " : " ;
         cluster_dist.zeros();
         for(int k = 0; k < num_splits; k++){
-          cluster_dist(k) = arma::norm(U.row(i).t() - means.col(k));
+          cluster_dist(k) = arma::norm(U.row(i).t() - tmp_means.col(k));
         }
         cluster_dist_indices = arma::sort_index(cluster_dist, "ascend");
-        score += cluster_dist(cluster_dist_indices(0)) * cluster_dist(cluster_dist_indices(0)); // adds sq distance from U(i,) to its centroid to running sum
+        cluster_assignment(i) = cluster_dist_indices(0);
+        cluster_means.row(cluster_dist_indices(0)) += U.row(i); //
+        ++(cluster_counts(cluster_dist_indices(0)));
+      }
+      
+      // at this point, rows of cluster_means contains SUM of the elements in the cluster and not their mean
+      for(int k = 0; k < num_splits; k++){
+        cluster_means.row(k) /= cluster_counts(k);
+      }
+      score = 0.0;
+      for(int i = 0; i < n; i++){
+        score += arma::norm(U.row(i) - cluster_means.row(cluster_assignment(i))) * arma::norm(U.row(i) - cluster_means.row(cluster_assignment(i)));
       }
       if(r == 0){
         min_score = score;
+        //Rcpp::Rcout << " r = 0. re-setting min_score = " << min_score << std::endl;
         means = tmp_means;
       }
       else if(score < min_score){
         min_score = score;
         means = tmp_means;
+        //Rcpp::Rcout << "[kmeans_repeat]:    r = " << r << " new min score = " << min_score << endl;
       }
     }
   }
+  //Rcpp::Rcout << "[kmeans_repeat]: min_score = " << min_score << std::endl;
 }
 
-void kmeans_plus_plus(arma::mat &U, arma::mat &means, bool &final_status, int num_splits, int reps){
-  int n = U.n_rows;
-  int d = U.n_cols;
- // dimension of the data
+void kmeans_plus_plus(arma::mat &U, arma::mat &means, bool &final_status, double &min_score, int num_splits,int reps){
+  
+  int n = U.n_rows; // each row of U is an observation. note that arma::kmeans wants the observations stored as columns.
+  int d = U.n_cols; // dimension of the data
   arma::mat tmp_means(d, num_splits); // arma::kmeans returns the centroids stored as column vectors
   bool status = true;
   final_status = false; // if it returns false,
-  arma::mat cluster_dist = arma::zeros<arma::vec>(n); // stores distance of each observation to each cluster centroid
-  arma::uvec cluster_dist_indices(n); // used to sort the distance from each point to each cluster centroid
+  arma::vec cluster_dist = arma::zeros<arma::vec>(num_splits); // stores distance of each observation to each cluster centroid
+  arma::uvec cluster_dist_indices(num_splits); // used to sort the distance from each point to each cluster centroid
+  arma::vec cluster_assignment(n); // holds the assignment of each observation
+  cluster_assignment.fill(-1); // initialize with really
+  arma::mat cluster_means = arma::zeros<arma::mat>(num_splits, d); // each row is the mean of elements in cluster
+  arma::vec cluster_counts = arma::zeros<arma::vec>(num_splits);
   
-  arma::mat dist2_mat = arma::mat(n,n);
+  // Form the probability matrix for selecting the starting centroids
+  // cdf matrix is what we will compare to
+  arma::mat cdf_mat = arma::mat(n,n); // matrix whose rows store the probability of selecting obs j given obs i is the initial see
+  arma::vec tmp_dist_vec = arma::zeros<arma::vec>(n);
+  double tmp_sum = 0.0;
+  arma::vec tmp_cum_sum = arma::zeros<arma::vec>(n);
   for(int i = 0; i < n; i++){
-    for(int j = i; j < n; j++){
-      dist2_mat(i,j) = arma::norm(U.row(i) - U.row(j)) * arma::norm(U.row(i) - U.row(j));
+    tmp_dist_vec.zeros();
+    tmp_sum = 0.0;
+    for(int j = 0; j < n; j++){
+      tmp_dist_vec(j) = arma::norm(U.row(i) - U.row(j)) * arma::norm(U.row(i) - U.row(j));
+      tmp_sum += tmp_dist_vec(j);
     }
+    tmp_dist_vec /= tmp_sum; // normalize tmp_dist_vec to have sum 1
+    tmp_cum_sum = arma::cumsum(tmp_dist_vec); // cumulative probabilities.
+    cdf_mat.row(i) = tmp_cum_sum.t();
   }
-  arma::vec cum_prob = arma::zeros<arma::vec>(n);
-  arma::vec tmp_u = arma::randu<arma::vec>(1);
-  std::vector<int> already_included(n,0);
-  int starting_index = 0;
+  //Rcpp::Rcout << "[kmpp]: created cdf_mat" << endl;
+  
+  arma::vec tmp_unif(1);
+  arma::vec index_selected(n); // keeps track of which points have been selected as initial points
+  index_selected.fill(0);
+  int init_index = -1;
+  arma::uvec tmp_index(1);
+  int index = 0; // used to find the index of the new point
+  bool flag = false; // when flag == true, it means we have found a new index for a starting centroid
   double score = 0.0;
-  double min_score = 0.0;
+  min_score = 0.0;
+  
   for(int r = 0; r < reps; r++){
-    // draw a center
-    tmp_u = arma::randu<arma::vec>(1);
-    starting_index = floor(tmp_u(0)*n);
-    already_included[starting_index] = 1;
-    // starting point is indexed by floor(n*tmp_u(0))
-    means.col(0) = U.row(starting_index).t();
-    // now get the cumulative probabilities
-    cum_prob = arma::cumsum(dist2_mat.col(starting_index))/arma::accu(dist2_mat.col(starting_index));
-    for(int ns = 1; ns < num_splits; ns++){
-      tmp_u = arma::randu<arma::vec>(1);
-      // find first index n where tmp_u > cum_prob[n]. then use n-1
-    }
+    tmp_means.zeros();
+    index_selected.zeros();
+    // do the initialization
+    // first pick the initial seed point
+    //Rcpp::Rcout << "  r = " << r << endl;
+    tmp_unif.randu(1);
+    init_index = floor(n*tmp_unif(0));
+    //Rcpp::Rcout << "    initial index = " << init_index << endl;
+    index_selected(index) = 1;
+    //Rcpp::Rcout << "    remaining indices: " << endl;
+    tmp_means.col(0) = U.row(init_index).t();
+    for(int i = 1; i < num_splits; i++){
+      flag = false;
+      //Rcpp::Rcout << "i = " << i << endl;
+      while(flag == false){
+        tmp_unif.randu(1);
+        tmp_index = arma::find(cdf_mat.row(init_index) > tmp_unif(0), 1, "first"); // find first element in cdf_mat.row(init_index) exceeding tmp_unif(0)
+        index = tmp_index(0);
+        //Rcpp::Rcout << "tmp_unif = " << tmp_unif << "  cdf_mat(init_index, index) = " << cdf_mat(init_index, index) << endl;
+        if(index_selected(index) == 0){
+          flag = true;
+          index_selected(index) = 1;
+        } else {
+          flag = false;
+        }
+        //Rcpp::Rcout << " " << index ;
+      } // closes while loop
+      tmp_means.col(i) = U.row(index).t();
+      //Rcpp::Rcout << " " << index;
+    } // closes loop that initializes tmp_mean
+    score = 0.0;
+    status = arma::kmeans(tmp_means, U.t(), num_splits, arma::keep_existing, 10, false);
+    // reset the vectors for determining what's in each sub-cluster
+    cluster_assignment.fill(-1);
+    cluster_counts.zeros();
+    cluster_means.zeros();
+    cluster_dist.zeros();
+    cluster_dist_indices.zeros();
+    
+    if(status == false){
+      Rcpp::Rcout << "kmeans failed";
+    } else{
+      final_status = true;
+      for(int i = 0; i < n; i++){
+        //Rcpp::Rcout << "i = " << i << " : " ;
+        cluster_dist.zeros();
+        for(int k = 0; k < num_splits; k++){
+          cluster_dist(k) = arma::norm(U.row(i).t() - tmp_means.col(k));
+        }
+        cluster_dist_indices = arma::sort_index(cluster_dist, "ascend");
+        cluster_assignment(i) = cluster_dist_indices(0);
+        cluster_means.row(cluster_dist_indices(0)) += U.row(i); //
+        ++(cluster_counts(cluster_dist_indices(0)));
+      }
+      // at this point, rows of cluster_means contains SUM of the elements in the cluster and not their mean
+      for(int k = 0; k < num_splits; k++){
+        cluster_means.row(k) /= cluster_counts(k);
+      }
+      score = 0.0;
+      for(int i = 0; i < n; i++){
+        score += arma::norm(U.row(i) - cluster_means.row(cluster_assignment(i))) * arma::norm(U.row(i) - cluster_means.row(cluster_assignment(i)));
+      }
+      if(r == 0){
+        min_score = score;
+        //Rcpp::Rcout << " r = 0. re-setting min_score = " << min_score << std::endl;
+        means = tmp_means;
+      }
+      else if(score < min_score){
+        min_score = score;
+        means = tmp_means;
+        //Rcpp::Rcout << "r = " << r << " new min score = " << min_score << endl;
+      }
+    } // closes if/else checking whether kmeans failed
+    
+    
+    //Rcpp::Rcout << endl;
   } // closes loop over r
+  
+  
+  
+  
 }
 
 

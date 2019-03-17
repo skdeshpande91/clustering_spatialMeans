@@ -101,7 +101,7 @@ for(sim_number in 1:3){
   set.seed(seed_list[sim_number])
   #sigma2 <- 1/rgamma(K, 3/2, 1/2) # sigma2 ~ inv. chi-square_3
   #sigma2 <- 1/rgamma(1, 1, 1/2)
-  sigma2 <- 1/rgamma(1, 3/2, 3/2) # sigma2 ~ 3/chi-square_3
+  sigma2 <- 1/rgamma(1, 3/2, 3/2) # sigma2 ~ 1/chi-square_3
   alpha_small <- rep(NA, times = N_small)
   alpha_large <- rep(NA, times = N_large)
   
