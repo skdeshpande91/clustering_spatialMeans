@@ -349,8 +349,10 @@ void Partition::alpha_postmean(int cluster_id, const arma::vec &ybar, const int 
   int n_k = cluster_config[cluster_id];
   if(n_k == 1){
     //alpha_hat[clusters[cluster_id][0]] = T * ybar[clusters[cluster_id][0]]/(T + 1.0/(a1/(1-rho) + a2));
-    alpha_hat[clusters[cluster_id][0]] = T * ybar[clusters[cluster_id][0]]/(T + 1.0/( (a1/(1-rho) + a2)));
-    alpha_bar[cluster_id] = (1.0/a1) * (1 - rho) * alpha_hat[clusters[cluster_id][0]]/( 1.0/a1 * (1.0 - rho) + 1.0/a2);
+    //alpha_hat[clusters[cluster_id][0]] = T * ybar[clusters[cluster_id][0]]/(T + 1.0/( (a1/(1-rho) + a2)));
+    //alpha_bar[cluster_id] = (1.0/a1) * (1.0 - rho) * alpha_hat[clusters[cluster_id][0]]/( 1.0/a1 * (1.0 - rho) + 1.0/a2);
+    alpha_hat[clusters[cluster_id][0]] = (double) T * ybar[clusters[cluster_id][0]]/( (double) T + (1.0 - rho)/(a1 + a2 * (1.0 - rho)));
+    alpha_bar[cluster_id] = (1.0/a1) * (1.0 - rho) * alpha_hat[clusters[cluster_id][0]]/(1.0/a2 + (1.0 - rho)/a1);
   } else {
     arma::mat A_block_k = Submatrix(A_block, n_k, n_k, clusters[cluster_id], clusters[cluster_id]); // pulls out the relevant submatrix
     arma::vec row_sums = arma::zeros<vec>(n_k);
@@ -368,6 +370,19 @@ void Partition::alpha_postmean(int cluster_id, const arma::vec &ybar, const int 
     Omega_alpha.diag() += 1.0 - rho;
     
     arma::mat V_inv = 1.0/a1 * Omega_alpha;
+    V_inv -= (1.0 - rho) * (1.0 - rho)/a1 * a2/(a1 + a2 * (1.0 - rho) * (double) n_k);
+    V_inv.diag() += (double) T;
+    arma::mat V = arma::inv_sympd(V_inv);
+    arma::vec tmp_alpha = ( (double) T) * V * y_vec;
+    double tmp_alpha_sum = 0.0;
+    for(int i = 0; i < n_k; i++){
+      alpha_hat[clusters[cluster_id][i]] = tmp_alpha(i);
+      tmp_alpha_sum += tmp_alpha(i);
+    }
+    alpha_bar[cluster_id] = (1.0/a1) * (1.0 - rho) * tmp_alpha_sum/(1.0/a2 + n_k * (1.0 - rho)/a1);
+    
+    /*
+    arma::mat V_inv = 1.0/a1 * Omega_alpha;
     V_inv -= 1.0/(a1 * a1) * (1 - rho) * (1 - rho)/(1 + 1.0/a1 * a2 * n_k * (1 - rho));
     V_inv.diag()+=T;
     arma::mat V = inv_sympd(V_inv);
@@ -377,8 +392,8 @@ void Partition::alpha_postmean(int cluster_id, const arma::vec &ybar, const int 
       alpha_hat[clusters[cluster_id][i]] = tmp_alpha(i);
       tmp_alpha_sum += tmp_alpha(i);
     }
-    //alpha_bar[cluster_id] = (1.0/a1 + (1 - rho)*tmp_alpha_sum)/(1.0/a2 + n_k*(1-rho)/a1);
     alpha_bar[cluster_id] = (1.0/a1 * tmp_alpha_sum * (1 - rho))/(1.0/a2 + n_k * (1-rho)/a1);
+    */
   }
 }
 
@@ -890,7 +905,19 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
             cluster_config[kk-1] = orig_cluster_config[kk];
             clusters[kk-1].clear();
             clusters[kk-1].resize(cluster_config[kk-1],0);
+            // if I were to guess, this loop causes some problems:
+            //   we should loop over i until cluster_config[kk-1] not cluster_config[kk], which presumably is still 0 since
+            // the outer loop hasn't hit kk yet, and cluster_config[kk]
+            // confirmation: when I tried running it again, I noticed that the loop never entered i.
+            /*
             for(int i = 0; i < cluster_config[kk]; i++){
+              Rcpp::Rcout << "        i = " << i << endl;
+              clusters[kk-1][i] = orig_clusters[kk][i];
+              cluster_assignment[clusters[kk-1][i]] = kk-1;
+              alpha_hat[clusters[kk-1][i]] = orig_alpha_hat[clusters[kk-1][i]];
+            }
+            */
+            for(int i = 0; i < cluster_config[kk-1];i++){
               clusters[kk-1][i] = orig_clusters[kk][i];
               cluster_assignment[clusters[kk-1][i]] = kk-1;
               alpha_hat[clusters[kk-1][i]] = orig_alpha_hat[clusters[kk-1][i]];

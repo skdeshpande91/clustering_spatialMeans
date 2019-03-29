@@ -53,7 +53,7 @@ plot_partition_grid <- function(gamma, A_block, values = NULL, max_value = NULL,
   }
   
   
-  par(mar = c(1,1,2,1), mgp = c(1.8, 0.5, 0))
+  par(mar = c(1,1,2,1), mgp = c(1.8, 0.5, 0), cex.main = 0.8)
   plot(1, type = "n", xlim = c(0, n_side), ylim = c(0, n_side), xaxt = "n", yaxt = "n", main = title)
   for(k in 1:K){
     i_vec <- ceiling(gamma[[k]]/n_side)
@@ -99,4 +99,28 @@ plot_partition_grid <- function(gamma, A_block, values = NULL, max_value = NULL,
     }
   }
 }
+
+# Plot an individual particle
+plot_particle_grid <- function(l = 1, results, A_block, max_value = NULL){
+  
+  
+  if(results$counts[l] != 1)   plot_title <- paste0("count = ", results$counts[l], ",  w = ", round(results$pstar[l], digits = 3), ",  log-post = ", round(results$log_post[l], digits = 3))
+  else   plot_title <- paste0("w = ", round(results$pstar[l], digits = 3), ",  log-post = ", round(results$log_post[l], digits = 3))
+  plot_partition_grid(gamma = results$particles[[l]], A_block = A_block, values = results$alpha_hat_particle[,l], title = plot_title, max_value = max_value)
+}
+
+plot_particle_set_grid<- function(results,A_block, max_value = NULL){
+  
+  L_star <- length(results$particles)
+  n_side <- ceiling(sqrt(L_star))
+  
+  par(mar = c(1,1,2,1), mgp = c(1.8, 0.5, 0), mfrow = c(n_side, n_side), cex.main = 0.8)
+  for(l in 1:L_star){
+    plot_particle_grid(l, results, A_block, max_value)
+  }
+  
+  
+}
+
+
 
