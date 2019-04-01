@@ -22,9 +22,19 @@ using Rcpp::Rcout;
 using Rcpp::NumericVector;
 
 // [[Rcpp::export]]
-Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_block, const int L, Rcpp::List gamma_init, const double a1 = 1.0, const double a2 = 1.0,
-                             const double nu_sigma = 3, const double lambda_sigma = 1, const double rho = 0.99, const double lambda = 1.0, const double eta = 1.0,
-                             const int max_iter = 10, const double eps = 1e-3, const double split_frac = 0.1)
+Rcpp::List ensm_cluster_mean2(arma::vec ybar,
+                              const int T,
+                              const arma::mat A_block,
+                              const int L,
+                              Rcpp::List gamma_init,
+                              const double a1 = 1.0,
+                              const double a2 = 1.0,
+                              const double nu_sigma = 3,
+                              const double lambda_sigma = 1,
+                              const double rho = 0.99,
+                              const double lambda = 1.0, const double eta = 1.0,
+                              const int max_iter = 10, const double eps = 1e-3,
+                              const double split_frac = 0.1)
 {
   int n = ybar.size();
   Rcpp::Rcout << "n = " << n << endl;
@@ -120,7 +130,7 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
       
       // Spectral Splits
       //Rcpp::Rcout << "    starting spectral splits" << endl;
-      get_spectral_split(spec_si, particle_set[l], T, A_block, rho, a1, a2, 100);
+      get_spectral_split(spec_si, particle_set[l], T, A_block, rho, a1, a2, 500);
       delete spec_split_candidate;
       spec_split_candidate = new Partition(particle_set[l]);
       //best_split(spec_si, spec_split_candidate, l, particle_set, w, ybar, T, A_block, rho, a1, a2, nu_sigma, lambda_sigma, eta, lambda);

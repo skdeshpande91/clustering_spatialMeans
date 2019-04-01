@@ -829,8 +829,8 @@ void get_km_split(split_info &si, LPPartition gamma_l, const int T, const arma::
 }
 
 
-
-void best_split(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda)
+// original version of best_split. This attempts to always merge new subclusters with their neighbors
+void best_split_orig(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda)
 {
   
   if(si.num_splits > 0){
@@ -962,8 +962,8 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
 }
 
 
-// A new version of best_split
-void best_split2(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda, const bool merge_flag)
+// A new version of best_split: the last argument, merge_flag, is used to determine whether we should try merging new sub-clusters with their nearest neighbors
+void best_split(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda, const bool merge_flag)
 {
   if(si.num_splits > 0){
     LPPartition max_candidate = new Partition(particle_set[current_l]);
@@ -1238,3 +1238,25 @@ void get_subcluster_neighbor(std::vector<std::vector<int> > &init_new_clusters, 
   } // closes else part checking whether original partition has one cluster or not
 }
 
+
+void format_particle_set(std::vector<LPPartition> particle_set, Rcpp::List &output_list)
+{
+  arma::vec tmp_vec = arma::zeros<vec>(1);
+  Rcpp::NumericVector output_vec;
+  Rcpp::List tmp_list;
+  output_list = Rcpp::List(particle_set.size());
+  
+  
+  for(int l = 0; l < particle_set.size(); l++){
+    tmp_list = Rcpp::List(particle_set[l]->K);
+    for(int k = 0; k < particle_set[l]->K; k++){
+      tmp_vec = arma::zeros<vec>(particle_set[l]->cluster_config[k]);
+      for(int i = 0; i  < particle_set[l]->cluster_config[k]; i++) tmp_vec(i) = particle_set[l]->clusters[k][i] + 1; // Remember that R is 1-indexed
+      output_vec = Rcpp::wrap(arma::sort(tmp_vec, "ascend"));
+      output_vec.attr("dim") = R_NilValue;
+      tmp_list[k] = output_vec;
+    }
+    output_list[l] = tmp_list;
+  }
+  
+}
