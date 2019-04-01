@@ -99,11 +99,8 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
   double old_objective = 0.0;
   double objective = 0.0;
   
-  //objective = Entropy(0, particle_set[0], particle_set, w);
-  objective = lambda * Entropy(0, particle_set[0], particle_set, w); // forgot the lambda here!
-  for(int l = 0; l < L; l++){
-    objective += w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma);
-  }
+  objective = lambda * Entropy(0, particle_set[0], particle_set, w);
+  for(int l = 0; l < L; l++) objective += w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma);
 
 
   while((iter < max_iter) & (flag == 0)){
@@ -280,7 +277,7 @@ Rcpp::List ensm_cluster_mean2(arma::vec ybar, const int T,  const arma::mat A_bl
     }
     */
     Rcpp::Rcout << "   Number of stationary particles = " << conv_counter << endl;
-    Rcpp::Rcout << "   objective = " << objective << "   old_objective = " << old_objective << "  %diff = " << abs( (objective - old_objective)/objective) << endl;
+    Rcpp::Rcout << "   objective = " << objective << "   old_objective = " << old_objective << "  %diff = " << 100.0 * abs( (objective - old_objective)/objective) << endl;
     
     iter++;
   } // closes the main loop
