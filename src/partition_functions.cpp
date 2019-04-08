@@ -1083,7 +1083,124 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
   
 }
 
-
+// a version of best_split for MAP estimation
+void best_split_map(split_info &si, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const bool merge_flag)
+{
+  if(si.num_splits > 0){
+    LPPartition max_candidate = new Partition(init_particle);
+    double max_objective = total_log_post(max_candidate, nu_sigma, lambda_sigma);
+    LPPartition tmp_candidate = new Partition(init_particle);
+    double tmp_objective = 0.0;
+    
+    std::vector<int> k_star; // holds indices of nearest neighbors
+    int num_new_clusters = 0; // number of new sub-clusters created by the split
+    bool sanity_flag = true;
+    
+    
+    if(merge_flag == false){
+      // we will never perform progressive merges. instead we split and merge according to what is stored in si.nearest_neighbor
+      for(int split_ix = 0; split_ix < si.num_splits; split_ix++){
+        delete tmp_candidate;
+        tmp_candidate = new Partition(init_particle);
+        tmp_candidate->Split_Merge(si.split_k[split_ix], si.new_clusters[split_ix], si.nearest_neighbor[split_ix], ybar, T, A_block, rho, a1, a2, eta);
+        sanity_flag = sanity_check(tmp_candidate);
+        if(sanity_flag == false){
+          Rcpp::Rcout << "[best_split]: Before even trying merges, something is wrong about this split!" << endl;
+          Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
+          for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
+            Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
+            for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
+              Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
+            }
+            Rcpp::Rcout << endl;
+          }
+          Rcpp::Rcout << "Before split candidate is" << endl;
+          init_particle->Print_Partition(nu_sigma, lambda_sigma);
+          Rcpp::Rcout << "The candidate is now" << endl;
+          tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+          Rcpp::stop("Terminating");
+        } // closes if checking whether there is something wrong with the partition
+        tmp_objective = total_log_post(tmp_candidate, nu_sigma, lambda_sigma);
+        if(tmp_objective > max_objective){
+          delete max_candidate;
+          max_candidate = new Partition(tmp_candidate);
+          max_objective = tmp_objective;
+        }
+      } // closes loop over all of the possible splits
+    } else{
+      std::vector<int> k_star; // holds the progessively changing indices of the newly formed clusters
+      for(int split_ix = 0; split_ix < si.num_splits; split_ix++){
+        num_new_clusters = si.new_clusters[split_ix].size();
+        k_star.clear();
+        k_star.resize(num_new_clusters,-1);
+        
+        // first try to split all of the candidates but don't do any merges
+        delete tmp_candidate;
+        tmp_candidate = new Partition(init_particle);
+        tmp_candidate->Split_Merge(si.split_k[split_ix], si.new_clusters[split_ix], k_star, ybar, T, A_block, rho, a1, a2, eta);
+        sanity_flag = sanity_check(tmp_candidate);
+        if(sanity_flag == false){
+          Rcpp::Rcout << "[best_split]: Before even trying merges, something is wrong about this split!" << endl;
+          Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
+          for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
+            Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
+            for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
+              Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
+            }
+            Rcpp::Rcout << endl;
+          }
+          Rcpp::Rcout << "Before split candidate is" << endl;
+          init_particle->Print_Partition(nu_sigma, lambda_sigma);
+          Rcpp::Rcout << "The candidate is now" << endl;
+          tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+          Rcpp::stop("Terminating");
+        } // closes if checking whether there is something wrong with the partition
+        tmp_objective = total_log_post(tmp_candidate, nu_sigma, lambda_sigma);
+        if(tmp_objective > max_objective){
+          delete max_candidate;
+          max_candidate = new Partition(tmp_candidate);
+          max_objective = tmp_objective;
+        }
+        // now try to do all of the proposed merges
+        for(int nc_ix = 0; nc_ix < num_new_clusters; nc_ix++){
+          if(si.nearest_neighbor[split_ix][nc_ix] != -1){
+            k_star[nc_ix] = si.nearest_neighbor[split_ix][nc_ix];
+            delete tmp_candidate;
+            tmp_candidate = new Partition(init_particle);
+            tmp_candidate->Split_Merge(si.split_k[split_ix], si.new_clusters[split_ix], k_star, ybar, T, A_block, rho, a1, a2, eta);
+            sanity_flag = sanity_check(tmp_candidate);
+            if(sanity_flag == false){
+              Rcpp::Rcout << "[best_split]: Before even trying merges, something is wrong about this split!" << endl;
+              Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
+              for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
+                Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
+                for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
+                  Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
+                }
+                Rcpp::Rcout << endl;
+              }
+              Rcpp::Rcout << "Before split candidate is" << endl;
+              init_particle->Print_Partition(nu_sigma, lambda_sigma);
+              Rcpp::Rcout << "The candidate is now" << endl;
+              tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+              Rcpp::stop("Terminating");
+            } // closes if checking whether there is something wrong with the partition
+            tmp_objective = total_log_post(tmp_candidate, nu_sigma, lambda_sigma);
+            if(tmp_objective > max_objective){
+              delete max_candidate;
+              max_candidate = new Partition(tmp_candidate);
+              max_objective = tmp_objective;
+            }
+          } // closes if checking to see if we need to update k_star
+        } // closes loop over all of the new sub-clusters
+      } // closes loop over each potential split
+    } // close else part checking whether we do progressive merges or not
+    candidate->Copy_Partition(max_candidate);
+  } else{
+    candidate->Copy_Partition(init_particle);
+  } // closes if/else checking that we actually try splits at all
+  
+}
 
 void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda)
 {
@@ -1113,6 +1230,38 @@ void best_merge(merge_info &mi, LPPartition candidate, const int current_l, cons
     candidate->Copy_Partition(max_candidate);
   } else{
     candidate->Copy_Partition(particle_set[current_l]);
+  }
+  
+}
+
+
+void best_merge_map(merge_info &mi, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta)
+{
+  
+  if(mi.num_merges > 0){
+    LPPartition max_candidate = new Partition(init_particle);
+    double max_objective = total_log_post(max_candidate, nu_sigma, lambda_sigma);
+    LPPartition tmp_candidate = new Partition(init_particle); // the running candidate
+    double tmp_objective = 0.0;
+    
+    for(int m_ix = 0; m_ix < mi.num_merges; m_ix++){
+      delete tmp_candidate;
+      tmp_candidate = new Partition(init_particle);
+      tmp_candidate->Merge(mi.rec_k[m_ix], mi.donor_k[m_ix], ybar, T, A_block, rho, a1, a2, eta);
+      //Rcpp::Rcout << "tmp_candidate currently" << endl;
+      //tmp_candidate->Print_Partition();
+      //tmp_objective = w[current_l]*total_log_post(tmp_candidate, a_sigma, nu_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+      tmp_objective = total_log_post(tmp_candidate, nu_sigma, lambda_sigma);
+      if(tmp_objective > max_objective){
+        //Rcpp::Rcout << "[best merge]: max_candidate." << endl;
+        delete max_candidate;
+        max_candidate = new Partition(tmp_candidate);
+        max_objective = tmp_objective;
+      }
+    }
+    candidate->Copy_Partition(max_candidate);
+  } else{
+    candidate->Copy_Partition(init_particle);
   }
   
 }
