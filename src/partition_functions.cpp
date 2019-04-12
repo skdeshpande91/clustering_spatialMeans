@@ -359,7 +359,7 @@ void get_local(split_info &si, LPPartition gamma_l, const int T, const arma::mat
       distance.set_size(n_k);
       indices.reset();
       indices.set_size(n_k);
-      
+
       alpha_bar = gamma_l->alpha_bar[k];
       for(int i = 0; i < n_k; i++) distance(i) = abs(alpha_bar - gamma_l->alpha_hat[gamma_l->clusters[k][i]]);
       indices = arma::sort_index(distance, "descend");

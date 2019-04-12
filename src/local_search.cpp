@@ -35,54 +35,66 @@ Rcpp::List local_search(arma::vec ybar,
   
   split_info local_si;
   get_local(local_si, gamma_0, T, A_block, rho, a1, a2);
-  
+  /*
+  Rcpp::Rcout << "got " << local_si.num_splits << " local candidates" << endl;
+  for(int split_ix = 0; split_ix < local_si.num_splits; split_ix++){
+    Rcpp::Rcout << "creating " << local_si.new_clusters[split_ix].size() << " new clusters" << endl;
+    for(int nc_ix = 0; nc_ix < local_si.new_clusters[split_ix].size(); nc_ix++) Rcpp::Rcout << " size " << local_si.new_clusters[split_ix][nc_ix].size() << " and neighbor = " << local_si.nearest_neighbor[split_ix][nc_ix] ;
+    Rcpp::Rcout << endl;
+  }
+  */
+
+  std::vector<int> k_star(n,-1);
   int L = n+1;
   std::vector<LPPartition> particle_set(L);
   std::vector<double> w(L);
   particle_set[0] = new Partition(gamma_0);
   for(int i = 1; i < L; i++){
+    //Rcpp::Rcout << "i = " << i;
     particle_set[i] = new Partition(gamma_0);
-    particle_set[i]->Split_Merge(local_si.split_k[i], local_si.new_clusters[i], local_si.nearest_neighbor[i], ybar, T, A_block, rho, a1, a2, eta);
+    k_star.clear();
+    k_star.resize(local_si.new_clusters[i-1].size());
+    for(int nc_ix = 0; nc_ix < local_si.new_clusters[i-1].size(); nc_ix++) k_star[nc_ix] = -1;
+    //Rcpp::Rcout << local_si.new_clusters[i-1].size() << " " << k_star.size() << endl;
     
+    particle_set[i]->Split_Merge(local_si.split_k[i-1], local_si.new_clusters[i-1], k_star, ybar, T, A_block, rho, a1, a2, eta);
+    //Rcpp::Rcout << "  log-post = " << total_log_post(particle_set[i], nu_sigma, lambda_sigma) << endl;
     
     w[i] = 1/(n+1);
   }
-  
-  
-  
-  
-  
-  arma::vec tmp_log_post(n); // holds the log-posterior of the island candidate
-  arma::vec tmp_log_like(n); // holds log-likelihood of each island candidate
-  arma::vec tmp_log_post(n); // holds the log prior of each island candidate
-  arma::uvec log_post_index(n);
-  
-  arma::vec log_post(n+1);
-  arma::vec log_like(n+1);
-  arma::vec log_prior(n+1);
-  
-  split_info local_si;
-  
-  double local_obj = 0.0;
-  
-  
-  for(int i = 0; i < local_si.num_splits; i++){
-    delete local_candidate;
-    local_candidate = new Partition(gamma_0);
-    local_candidate->Split_Merge(local_si.split_k[i], local_si.new_clusters[i], local_si.nearest_neighor[i], ybar, T, A_block, rho, a1, a2, eta);
-    particle_set[i]->Copy_Partition(local_candidate);
-  }
-  
-  
-  
-  
-  log_post_index = arma::sort_index(tmp_log_post, "descend");
-  
-  log_post(0) = total_log_post(gamma_0, nu_sigma, lambda_sigma);
-  log_like(0) = total_log_like(gamma_0, nu_sigma, lambda_sigma);
-  log_prior(0) = total_log_prior(gamma_0);
+  Rcpp::Rcout << "Finished main loop" << endl;
+  // Run update w.
+  update_w(particle_set, w, L, nu_sigma, lambda_sigma, 1.0); // use lambda = 1 so that w is the re-weighted log-posterior
 
+  // Find unique particles. For this particular function, this is slightly overkill since we know there are n+1 unique particles
+  // However, it will sort everything, which is nice
+  std::vector<std::vector<int> > particle_map;
+  std::vector<double> pstar;
+  std::vector<int> counts;
+  get_unik_particles(particle_map, pstar, counts, particle_set, w);
   
-  
-  
+  int L_star = particle_map.size();
+  std::vector<LPPartition> unik_particles(L_star);
+  std::vector<double> log_like(L_star);
+  std::vector<double> log_prior(L_star);
+  std::vector<double> log_post(L_star);
+  for(int l = 0; l < L_star; l++){
+    unik_particles[l] = new Partition(particle_set[particle_map[l][0]]);
+    log_like[l] = total_log_like(unik_particles[l], nu_sigma, lambda_sigma);
+    log_prior[l] = total_log_prior(unik_particles[l]);
+    log_post[l] = total_log_post(unik_particles[l], nu_sigma, lambda_sigma);
+    
+  }
+  Rcpp::List unik_particles_out;
+  format_particle_set(unik_particles, unik_particles_out); // format the particle set so that it can returned as an R list
+  Rcpp::List results;
+  results["ybar"] = ybar;
+  results["particles"] = unik_particles_out;
+  results["pstar"] = pstar;
+  results["counts"] = counts;
+  results["log_like"] = log_like;
+  results["log_prior"] = log_prior;
+  results["log_post"] = log_post;
+
+  return results;
 }
