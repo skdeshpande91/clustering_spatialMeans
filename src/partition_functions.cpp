@@ -327,6 +327,78 @@ void get_island(split_info &si, LPPartition gamma_l, const int T, const arma::ma
   } // closes loop over all clusters
 }
 
+// This is just get_island but it tries to move every group out of its cluster
+void get_local(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2)
+{
+  si.num_splits = 0;
+  si.split_k.clear();
+  si.nearest_neighbor.clear();
+  si.new_clusters.clear();
+  
+  int orig_K = gamma_l->K;
+  int n_k = 1;
+  
+  double alpha_bar = 0.0; // holds the cluster mean
+  arma::vec distance = arma::zeros<arma::vec>(1); // holds distance of each alpha-hat from the overall cluster mean
+  arma::uvec indices(1); // used to sort the elements based on how far they are from the cluster mean
+  int num_islands = 0; // number of islands we try to create
+  
+  std::vector<int> island(1); // holds index of the island being removed from cluster split_k
+  std::vector<int> remain(1); // holds indices that remain in cluster split_k
+  arma::mat A_tmp = arma::zeros<arma::mat>(1,1); // used to find connected components of remain
+  std::vector<std::vector<int> > connected_components; // temporariy hold connected components of each sub-cluster
+  std::vector<std::vector<int> > tmp_new_clusters; // will contains connected components of remain and the island
+  std::vector<std::vector<int> > new_clusters; // holds the new connected sub-clusters created
+  std::vector<int> k_star; // holds the labels of nearest neighbors of new sub-clusters
+  
+  
+  for(int k = 0; k < orig_K; k++){
+    n_k = gamma_l->cluster_config[k];
+    if(n_k > 1){
+      distance.reset();
+      distance.set_size(n_k);
+      indices.reset();
+      indices.set_size(n_k);
+      
+      alpha_bar = gamma_l->alpha_bar[k];
+      for(int i = 0; i < n_k; i++) distance(i) = abs(alpha_bar - gamma_l->alpha_hat[gamma_l->clusters[k][i]]);
+      indices = arma::sort_index(distance, "descend");
+      num_islands = n_k; // will try to remove all elements in sequential order
+      for(int ix = 0; ix < num_islands; ix++){
+        remain.clear();
+        island.clear();
+        for(int i = 0; i < n_k; i++){
+          if(i != ix) remain.push_back(gamma_l->clusters[k][indices(i)]); // includes all but the ix-th furtherst point from cluster mean
+          else island.push_back(gamma_l->clusters[k][indices(i)]);
+        } // closes loop populating remain and island
+        
+        // find the connected components of remain
+        if(remain.size() > 0 & island.size() > 0){ // this is probably superfluous but it's fine for now
+          connected_components.clear();
+          tmp_new_clusters.clear();
+          A_tmp = Submatrix(A_block, remain.size(), remain.size(), remain, remain);
+          new_Connected_Components(A_tmp, remain.size(), remain, connected_components);
+          for(int new_k = 0; new_k < connected_components.size(); new_k++){
+            tmp_new_clusters.push_back(connected_components[new_k]);
+          }
+          tmp_new_clusters.push_back(island); // add the island to the mix
+          new_clusters.clear();
+          new_clusters.resize(tmp_new_clusters.size());
+          k_star.clear();
+          k_star.resize(tmp_new_clusters.size());
+          get_subcluster_neighbor(tmp_new_clusters, new_clusters, k_star, k, gamma_l, T, A_block, rho, a1, a2);
+          
+          si.split_k.push_back(k);
+          si.new_clusters.push_back(new_clusters);
+          si.nearest_neighbor.push_back(k_star);
+          si.num_splits++;
+        } // closes if/else checking that at least 1 elements remains in k.
+        
+      } // closes loop over the possible islands
+    } // closes if/else checking that there is more than 1 element in the cluster
+  } // closes loop over all clusters
+}
+
 
 void get_border(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2)
 {
