@@ -112,6 +112,21 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar,
   for(int l = 0; l < L; l++) objective += w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma);
   
   
+  std::vector<double> objective_trajectory;
+  objective_trajectory.push_back(objective);
+  
+  std::vector<Rcpp::List> particle_set_trajectory;
+  Rcpp::List tmp_list;
+  format_particle_set(particle_set, tmp_list);
+  particle_set_trajectory.push_back(tmp_list);
+  std::vector<double> tmp_log_post(L); // temporarily hold the log-posterior value of each
+  std::vector<double> tmp_log_like(L); // temporarily hold the log-likelihood value of each particle
+  std::vector<double> tmp_log_prior(L); // temporary hold the log-prior value of each particle
+  
+  std::vector<std::vector<double> > log_post_trajectory;
+  std::vector<std::vector<double> > log_like_trajectory;
+  std::vector<std::vector<double> > log_prior_trajectory;
+  
   while((iter < max_iter) & (flag == 0)){
     Rcpp::Rcout << "[ensm_cluster_mean]: Starting iter " << iter << endl;
     old_objective = objective;
@@ -203,8 +218,15 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar,
         if(island_flag == 0) particle_set[l]->Copy_Partition(island_candidate);
         else conv_counter++;
       }
+      
+      tmp_log_prior[l] = total_log_prior(particle_set[l]);
+      tmp_log_like[l] = total_log_like(particle_set[l], nu_sigma, lambda_sigma);
+      tmp_log_post[l] = total_log_post(particle_set[l], nu_sigma, lambda_sigma);
     } // closes loop over the particle set
       // update the importance weights now
+    
+    
+    
     update_w(particle_set, w, L, nu_sigma, lambda_sigma, lambda);
     
     if(conv_counter == L){
@@ -222,6 +244,14 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar,
      //flag = 1;
      }
      */
+    // update the trajectories
+    objective_trajectory.push_back(objective);
+    format_particle_set(particle_set, tmp_list);
+    particle_set_trajectory.push_back(tmp_list);
+    //log_prior_trajectory.push_back(tmp_log_prior);
+    //log_like_trajectory.push_back(tmp_log_like);
+    //log_post_trajectory.push_back(tmp_log_post);
+  
     Rcpp::Rcout << "   Number of stationary particles = " << conv_counter << endl;
     Rcpp::Rcout << "   objective = " << objective << "   old_objective = " << old_objective << "  %diff = " << 100.0 * abs( (objective - old_objective)/objective) << endl;
     
@@ -253,6 +283,24 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar,
   format_particle_set(init_unik_particles, init_unik_particles_out);
   format_particle_set(unik_particles, unik_particles_out);
 
+  
+  Rcpp::List particle_trajectory_out(particle_set_trajectory.size());
+  arma::mat log_prior_trajectory_out = arma::zeros<mat>(particle_set_trajectory.size(), L);
+  arma::mat log_like_trajectory_out = arma::zeros<mat>(particle_set_trajectory.size(), L);
+  arma::mat log_post_trajectory_out = arma::zeros<mat>(particle_set_trajectory.size(), L);
+  
+  for(int ix = 0; ix < particle_set_trajectory.size(); ix++){
+    particle_trajectory_out[ix] = particle_set_trajectory[ix];
+    //for(int l = 0; l < L; l++){
+      //log_prior_trajectory_out[ix,l] = log_prior_trajectory[ix][l];
+      //log_like_trajectory_out[ix,l] = log_like_trajectory[ix][l];
+      //log_post_trajectory_out[ix,l] = log_post_trajectory[ix][l];
+    //}
+  }
+  
+  
+
+  
   arma::mat alpha_hat_particle = arma::zeros<mat>(n, L_star); // estimates for each unique particle
   for(int l = 0; l < L_star; l++){
     for(int i = 0; i < n; i++){
@@ -276,20 +324,25 @@ Rcpp::List ensm_cluster_mean(arma::vec ybar,
   }
   
   Rcpp::List results;
-  results["init_unik_particles"] = init_unik_particles_out;
-  results["init_pstar"] = init_pstar;
-  results["init_counts"] = init_counts;
-  results["init_log_like"] = init_log_like;
-  results["init_log_prior"] = init_log_prior;
-  results["init_log_post"] = init_log_post;
+  //results["init_unik_particles"] = init_unik_particles_out;
+  //results["init_pstar"] = init_pstar;
+  //results["init_counts"] = init_counts;
+  //results["init_log_like"] = init_log_like;
+  //results["init_log_prior"] = init_log_prior;
+  //results["init_log_post"] = init_log_post;
   results["particles"] = unik_particles_out;
   results["pstar"] = pstar;
   results["counts"] = counts;
   results["log_like"] = log_like;
   results["log_prior"] = log_prior;
   results["log_post"] = log_post;
-  results["alpha_hat_particle"] = alpha_hat_particle;
-  results["alpha_hat_wtd"] = alpha_hat_wtd;
+  results["objective_trajectory"] = objective_trajectory;
+  results["particle_trajectory"] = particle_trajectory_out;
+  //results["log_prior_trajectory"] = log_prior_trajectory_out;
+  //results["log_like_trajectory"] = log_like_trajectory_out;
+  //results["log_post_trajectory"] = log_post_trajectory_out;
+  //results["alpha_hat_particle"] = alpha_hat_particle;
+  //results["alpha_hat_wtd"] = alpha_hat_wtd;
   return(results);
 }
 
