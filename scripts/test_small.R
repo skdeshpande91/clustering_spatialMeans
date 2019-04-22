@@ -16,7 +16,7 @@ sourceCpp("src/ensm_cluster_mean.cpp")
 
 test0 <- ensm_cluster_mean(ybar_1_small[,1], T = 10, A_block_small, L = 5, gamma_init = gamma_0_small, a1 = 1/10, a2 = 10, eta = 1, max_iter = 20, lambda = 100)
 test1 <- ensm_cluster_mean(ybar_1_small[,1], T = 10, A_block_small, L = 5, gamma_init = gamma_1_small, a1 = 1/10, a2 = 10, eta = 1, max_iter = 20, lambda = 100)
-
+test2 <- ensm_cluster_mean(ybar_1_small[,1], T = 10, A_block_small, L = 5, gamma_init = gamma_2_small, a1 = 1/10, a2 = 10, eta = 1, max_iter = 20, lambda = 100)
 
 plot_particle_set_new(test1$particle_trajectory[[5]], A_block_small)
 

@@ -16,8 +16,7 @@
 using namespace std;
 
 // [[Rcpp::export]]
-Rcpp::List local_search(arma::vec ybar,
-                        const int T,
+Rcpp::List local_search(arma::mat Y,
                         const arma::mat A_block,
                         Rcpp::List gamma_init,
                         const double a1 = 1.0,
@@ -28,7 +27,16 @@ Rcpp::List local_search(arma::vec ybar,
                         const double eta = 1.0,
                         const double eps = 1e-3)
 {
-  int n = ybar.size();
+  int n = Y.n_rows;
+  int T = Y.n_cols;
+  
+  arma::vec ybar(n);
+  double total_ss = 0;
+  for(int i = 0; i < n; i++){
+    ybar(i) = arma::mean(Y.row(i));
+    total_ss += (T-1) * arma::var(Y.row(i));
+  }
+  
   Rcpp::Rcout << "n = " << n << endl;
   LPPartition gamma_0 = new Partition(n, gamma_init, ybar, T, A_block, rho, a1, a2, eta);
   Rcpp::Rcout << "Created gamma_0" << endl;
@@ -64,7 +72,7 @@ Rcpp::List local_search(arma::vec ybar,
   }
   Rcpp::Rcout << "Finished main loop" << endl;
   // Run update w.
-  update_w(particle_set, w, L, nu_sigma, lambda_sigma, 1.0); // use lambda = 1 so that w is the re-weighted log-posterior
+  update_w(particle_set, w, L, total_ss, T, nu_sigma, lambda_sigma, 1.0); // use lambda = 1 so that w is the re-weighted log-posterior
 
   // Find unique particles. For this particular function, this is slightly overkill since we know there are n+1 unique particles
   // However, it will sort everything, which is nice
@@ -78,23 +86,23 @@ Rcpp::List local_search(arma::vec ybar,
   std::vector<double> log_like(L_star);
   std::vector<double> log_prior(L_star);
   std::vector<double> log_post(L_star);
+  arma::mat alpha_out(n, L_star);
   for(int l = 0; l < L_star; l++){
     unik_particles[l] = new Partition(particle_set[particle_map[l][0]]);
-    log_like[l] = total_log_like(unik_particles[l], nu_sigma, lambda_sigma);
+    log_like[l] = total_log_like(unik_particles[l], total_ss, T, nu_sigma, lambda_sigma);
     log_prior[l] = total_log_prior(unik_particles[l]);
-    log_post[l] = total_log_post(unik_particles[l], nu_sigma, lambda_sigma);
-    
+    log_post[l] = total_log_post(unik_particles[l], total_ss, T, nu_sigma, lambda_sigma);
+    for(int i = 0; i < n; i++) alpha_out(i,l) = unik_particles[l]->alpha_hat[i];
   }
   Rcpp::List unik_particles_out;
   format_particle_set(unik_particles, unik_particles_out); // format the particle set so that it can returned as an R list
   Rcpp::List results;
-  results["ybar"] = ybar;
   results["particles"] = unik_particles_out;
   results["pstar"] = pstar;
   results["counts"] = counts;
   results["log_like"] = log_like;
   results["log_prior"] = log_prior;
   results["log_post"] = log_post;
-
+  results["alpha"] = alpha_out;
   return results;
 }

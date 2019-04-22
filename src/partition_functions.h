@@ -34,14 +34,16 @@ void get_unik_particles(std::vector<std::vector<int> > &particle_map, std::vecto
 
 
 double Entropy(unsigned current_l, Partition* candidate_particle, std::vector<LPPartition> particle_set, std::vector<double> w);
-//double total_log_post(LPPartition partition, const double a_sigma, const double nu_sigma);
-double total_log_post(LPPartition partition, const double nu_sigma, const double lambda_sigma);
-//double total_log_like(LPPartition partition, const double a_sigma, const double nu_sigma);
-double total_log_like(LPPartition partition, const double nu_sigma, const double lambda_sigma);
+
+// need to account for the block group variances in the log likelihood
+
+
+double total_log_post(LPPartition partition, const double total_ss, const int T, const double nu_sigma, const double lambda_sigma);
+double total_log_like(LPPartition partition, const double total_ss, const int T, const double nu_sigma, const double lambda_sigma);
 double total_log_prior(LPPartition partition);
 double alpha_bar_func(std::vector<int> new_cluster, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2);
 //void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, const int L, const double a_sigma, const double nu_sigma, const double lambda);
-void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, const int L, const double nu_sigma, const double lambda_sigma, const double lambda);
+void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, const int L, const double total_ss, const int T, const double nu_sigma, const double lambda_sigma, const double lambda);
 
 
 void get_island(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double island_frac);
@@ -57,14 +59,14 @@ void get_local(split_info &si, LPPartition gamma_l, const int T, const arma::mat
 
 
 
-void best_split_orig(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda);
-void best_split(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda, const bool merge_flag);
+void best_split_orig(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda);
+void best_split(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda, const bool merge_flag);
 
-void best_split_map(split_info &si, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const bool merge_flag);
+void best_split_map(split_info &si, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const bool merge_flag);
 
-void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda);
+void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda);
 
-void best_merge_map(merge_info &mi, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta);
+void best_merge_map(merge_info &mi, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta);
 
 
 

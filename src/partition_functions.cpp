@@ -129,10 +129,10 @@ double Entropy(unsigned current_l, Partition* candidate_particle, std::vector<LP
 }
 
 // a silly function to add up log-likelihoods and log-priors
-//double total_log_post(LPPartition partition, const double a_sigma, const double nu_sigma){
-double total_log_post(LPPartition partition, const double nu_sigma, const double lambda_sigma){
+
+double total_log_post(LPPartition partition, const double total_ss, const int T, const double nu_sigma, const double lambda_sigma){
 	//double log_post = total_log_like(partition, a_sigma, nu_sigma);
-  double log_post = total_log_like(partition, nu_sigma, lambda_sigma);
+  double log_post = total_log_like(partition, total_ss, T, nu_sigma, lambda_sigma);
   for(int k = 0; k < partition->K; k++){
     log_post += partition->log_prior[k];
   }
@@ -144,7 +144,7 @@ double total_log_post(LPPartition partition, const double nu_sigma, const double
 }
 
 //double total_log_like(LPPartition partition, const double a_sigma, const double nu_sigma){
-double total_log_like(LPPartition partition, const double nu_sigma, const double lambda_sigma){
+double total_log_like(LPPartition partition, const double total_ss, const int T, const double nu_sigma, const double lambda_sigma){
 
   double log_like = 0.0;
   double log_det = 0.0;
@@ -155,7 +155,8 @@ double total_log_like(LPPartition partition, const double nu_sigma, const double
     quad_form += partition->y_Omegay_y[k];
   }
   
-  log_like = 0.5 * log_det - ( (nu_sigma + partition->nObs)/2) * log( (nu_sigma * lambda_sigma + quad_form)/2);
+  log_like = 0.5 * log_det - ( (nu_sigma + ((double) T) * ((double) partition->nObs))/2 ) * log( (nu_sigma + lambda_sigma + quad_form + total_ss) / 2);
+  //log_like = 0.5 * log_det - ( (nu_sigma + partition->nObs)/2) * log( (nu_sigma * lambda_sigma + quad_form)/2);
 
   return log_like;
 }
@@ -181,7 +182,7 @@ double alpha_bar_func(std::vector<int> new_cluster, LPPartition gamma_l, const i
   }
 }
 
-void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, const int L, const double nu_sigma, const double lambda_sigma, const double lambda)
+void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, const int L, const double total_ss, const int T, const double nu_sigma, const double lambda_sigma, const double lambda)
 {
   
   double max_log_post = 0.0;
@@ -200,10 +201,10 @@ void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, con
   std::vector<double> p_star;
   std::vector<double> log_post;
 
-  log_post.push_back(total_log_post(particle_set[0], nu_sigma, lambda_sigma));
+  log_post.push_back(total_log_post(particle_set[0], total_ss, T, nu_sigma, lambda_sigma));
   p_star.push_back(0);
   //max_log_post = total_log_post(particle_set[0], a_sigma, nu_sigma);
-  max_log_post = total_log_post(particle_set[0], nu_sigma, lambda_sigma);
+  max_log_post = total_log_post(particle_set[0], total_ss, T, nu_sigma, lambda_sigma);
   //Rcpp::Rcout << "[update_w]: Ready to find unik_particles" << endl;
   
   int num_unik_particles = 1;
@@ -226,7 +227,7 @@ void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, con
       particle_assignment[l] = num_unik_particles;
       p_star.push_back(0.0); // for now we populate p_star with 0's
       //tmp_log_post = total_log_post(particle_set[l], a_sigma, nu_sigma);
-      tmp_log_post = total_log_post(particle_set[l], nu_sigma, lambda_sigma);
+      tmp_log_post = total_log_post(particle_set[l], total_ss, T, nu_sigma, lambda_sigma);
       log_post.push_back(tmp_log_post);
       if(tmp_log_post > max_log_post){
         max_log_post = tmp_log_post;
@@ -901,145 +902,13 @@ void get_km_split(split_info &si, LPPartition gamma_l, const int T, const arma::
 }
 
 
-// original version of best_split. This attempts to always merge new subclusters with their neighbors
-void best_split_orig(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda)
-{
-  
-  if(si.num_splits > 0){
-    //Rcpp::Rcout << "[best_split]: Will attempt " << si.num_splits << " different splits" << endl;
-    LPPartition max_candidate = new Partition(particle_set[current_l]);
-    //double max_objective = w[current_l]*total_log_post(max_candidate, a_sigma, nu_sigma) + lambda*Entropy(current_l, max_candidate, particle_set, w);
-    double max_objective = w[current_l]*total_log_post(max_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, max_candidate, particle_set, w);
-    LPPartition tmp_candidate = new Partition(particle_set[current_l]); // the running candidate
-    double tmp_objective = 0.0;
-    
-    int break_flag = 0;
-    
-    std::vector<int> k_star; // holds the indices of nearest neighbors
-    int num_new_clusters = 0;
-    int split_k = 0;
-    
-    bool sanity_flag = true;
-    
-    for(int split_ix = 0; split_ix < si.num_splits; split_ix++){
-      //Rcpp::Rcout << "    [best_split]: split_ix = " << split_ix << endl;
-
-      split_k = si.split_k[split_ix]; // which cluster is being split
-      num_new_clusters = si.new_clusters[split_ix].size();
-      
-      k_star.clear();
-      k_star.resize(num_new_clusters, -1); // note: simply re-sizing will not overwrite the values
-
- // print out some of the progress to make sure the split is valid
-
-      //Rcpp::Rcout << "Attempting to split cluster " << split_k << "into:" << endl;
-      //for(int i = 0; i < num_new_clusters;i++){
-      //  Rcpp::Rcout << "  new cluster " << i << " of size " << si.new_clusters[split_ix][i].size() << " with neighbor " << k_star[i] << endl;
-      //  for(int ii = 0; ii < si.new_clusters[split_ix][i].size(); ii++){
-      //    Rcpp::Rcout << si.new_clusters[split_ix][i][ii] << " ";
-      //  }
-      //  Rcpp::Rcout << endl;
-      //}
-
-      // delete tmp_candidate and re-create it
-      delete tmp_candidate;
-      tmp_candidate = new Partition(particle_set[current_l]);
-      tmp_candidate->Split_Merge(split_k, si.new_clusters[split_ix], k_star, ybar, T, A_block, rho, a1, a2, eta);
-      //Rcpp::Rcout << "[best_split]: tmp_candidate is now:" << endl;
-      //tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
-      sanity_flag = sanity_check(tmp_candidate);
-      if(sanity_flag == false){
-        Rcpp::Rcout << "[best_split]: Before even trying merges, something is wrong about this split!" << endl;
-        Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
-        for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
-          Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
-          for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
-            Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
-          }
-          Rcpp::Rcout << endl;
-        }
-        Rcpp::Rcout << "Before split candidate is" << endl;
-        particle_set[current_l]->Print_Partition(nu_sigma, lambda_sigma);
-        Rcpp::Rcout << "The candidate is now" << endl;
-        tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
-        Rcpp::stop("Terminating");
-      }
-      //tmp_objective = w[current_l]*total_log_post(tmp_candidate, a_sigma, nu_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
-      tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
-      //Rcpp::Rcout << "tmp_objective = " << tmp_objective << "  max_objective = " << max_objective << endl;
-      //Rcpp::Rcout << "tmp_log_like = " << total_log_like(tmp_candidate, nu_sigma, lambda_sigma) << " orig_log_like = " << total_log_like(particle_set[current_l], nu_sigma, lambda_sigma) << endl;
-      //Rcpp::Rcout << "tmp_log_prior = " << total_log_prior(tmp_candidate) << " orig_log_prior = " << total_log_prior(particle_set[current_l]) << endl;
-      //Rcpp::Rcout << "tmp_log_post = " << total_log_post(tmp_candidate, nu_sigma, lambda_sigma) << " orig_log_post = " << total_log_post(particle_set[current_l], nu_sigma, lambda_sigma) << endl;
-      //Rcpp::Rcout << "tmp_objective = " << tmp_objective << "  max_objective = " << max_objective << endl;
-      if(tmp_objective > max_objective){
-        delete max_candidate;
-        max_candidate = new Partition(tmp_candidate);
-        max_objective = tmp_objective;
-        //Rcpp::Rcout << "  max candidate updated. max_obj = " << max_objective  << endl;
-        break_flag = 1;
-      }
-      // now we consider a sequence of progressive merges
-
-      if(break_flag == 0){
-        for(int nc_ix = 0; nc_ix < num_new_clusters; nc_ix++){
-          //Rcpp::Rcout << "[best_split]: in progressive merge. nc_ix = " << nc_ix << endl;
-          if(si.nearest_neighbor[split_ix][nc_ix] != -1){
-            k_star[nc_ix] = si.nearest_neighbor[split_ix][nc_ix]; // as the loop progresses, we change one element of k_star at a time
-            delete tmp_candidate;
-            tmp_candidate = new Partition(particle_set[current_l]);
-            tmp_candidate->Split_Merge(split_k, si.new_clusters[split_ix], k_star, ybar, T, A_block, rho, a1, a2, eta);
-            sanity_flag = sanity_check(tmp_candidate);
-            if(sanity_flag == false){
-              Rcpp::Rcout << "[best_split]: in progressive merge, we have a bad candidate" << endl;
-              Rcpp::Rcout << "   Attempted to split cluster " << si.split_k[split_ix] << " into " << si.new_clusters[split_ix].size() << " parts " << endl;
-              for(int nc_ix = 0; nc_ix < si.new_clusters[split_ix].size(); nc_ix++){
-                //Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " and neighbor " << si.nearest_neighbor[split_ix][nc_ix] << " : " << endl;
-                Rcpp::Rcout << "    new cluster " << nc_ix << " of size " << si.new_clusters[split_ix][nc_ix].size() << " being merged into " << k_star[nc_ix] << " : " << endl; // check where we are merging into
-                for(int ii = 0; ii < si.new_clusters[split_ix][nc_ix].size(); ii++){
-                  Rcpp::Rcout << si.new_clusters[split_ix][nc_ix][ii] << " " ;
-                }
-                Rcpp::Rcout << endl;
-              }
-              //Rcpp::Rcout << "Before split candidate is" << endl;
-              //particle_set[current_l]->Print_Partition(nu_sigma, lambda_sigma);
-              Rcpp::Rcout << "The candidate is now" << endl;
-              tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
-              Rcpp::stop("Terminating");
-            }
-            tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
-            //Rcpp::Rcout << "    tmp_objective = " << tmp_objective << "  max_objective = " << max_objective << endl;
-            if(tmp_objective > max_objective){
-              delete max_candidate;
-              max_candidate = new Partition(tmp_candidate);
-              max_objective = tmp_objective;
-              //Rcpp::Rcout << "  max candidate updated. max_obj = " << max_objective  << endl;
-              break_flag = 1;
-              break;
-            }
-          } // closes if statement checking if nearest neighbor of the next element is -1 or not; if it is -1 we don't try the progressive merge
-          // not sure this is strictly necessary but we'll do it anyway
-          if(break_flag == 1) break;
-        }
-      } // closes if statement that checks whether we should go into the progressive merges
-
-      if(break_flag == 1) break; // this will break us out of the loop over different proposed splits
-    } // closes loop over the different proposed splits
-    //Rcpp::Rcout << "Is max_candidate == particle_set[current_l]? " << Partition_Equal(particle_set[current_l], max_candidate) << endl;
-    candidate->Copy_Partition(max_candidate);
-    delete tmp_candidate;
-    delete max_candidate;
-  } else{
-    candidate->Copy_Partition(particle_set[current_l]);
-  } // closes if/else checking that there are splits proposed
-}
-
 
 // A new version of best_split: the last argument, merge_flag, is used to determine whether we should try merging new sub-clusters with their nearest neighbors
-void best_split(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda, const bool merge_flag)
+void best_split(split_info &si, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda, const bool merge_flag)
 {
   if(si.num_splits > 0){
     LPPartition max_candidate = new Partition(particle_set[current_l]);
-    double max_objective = w[current_l]*total_log_post(max_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, max_candidate, particle_set, w);
+    double max_objective = w[current_l]*total_log_post(max_candidate, total_ss, T, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, max_candidate, particle_set, w);
     LPPartition tmp_candidate = new Partition(particle_set[current_l]);
     double tmp_objective = 0.0;
     
@@ -1068,12 +937,12 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
             Rcpp::Rcout << endl;
           }
           Rcpp::Rcout << "Before split candidate is" << endl;
-          particle_set[current_l]->Print_Partition(nu_sigma, lambda_sigma);
+          particle_set[current_l]->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
           Rcpp::Rcout << "The candidate is now" << endl;
-          tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+          tmp_candidate->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
           Rcpp::stop("Terminating");
         } // closes if checking whether there is something wrong with the partition
-        tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+        tmp_objective = w[current_l]*total_log_post(tmp_candidate, total_ss, T, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
         if(tmp_objective > max_objective){
           delete max_candidate;
           max_candidate = new Partition(tmp_candidate);
@@ -1103,12 +972,12 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
             Rcpp::Rcout << endl;
           }
           Rcpp::Rcout << "Before split candidate is" << endl;
-          particle_set[current_l]->Print_Partition(nu_sigma, lambda_sigma);
+          particle_set[current_l]->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
           Rcpp::Rcout << "The candidate is now" << endl;
-          tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+          tmp_candidate->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
           Rcpp::stop("Terminating");
         } // closes if checking whether there is something wrong with the partition
-        tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+        tmp_objective = w[current_l]*total_log_post(tmp_candidate, total_ss, T, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
         if(tmp_objective > max_objective){
           delete max_candidate;
           max_candidate = new Partition(tmp_candidate);
@@ -1133,12 +1002,12 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
                 Rcpp::Rcout << endl;
               }
               Rcpp::Rcout << "Before split candidate is" << endl;
-              particle_set[current_l]->Print_Partition(nu_sigma, lambda_sigma);
+              particle_set[current_l]->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
               Rcpp::Rcout << "The candidate is now" << endl;
-              tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+              tmp_candidate->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
               Rcpp::stop("Terminating");
             } // closes if checking whether there is something wrong with the partition
-            tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+            tmp_objective = w[current_l]*total_log_post(tmp_candidate, total_ss, T, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
             if(tmp_objective > max_objective){
               delete max_candidate;
               max_candidate = new Partition(tmp_candidate);
@@ -1156,11 +1025,11 @@ void best_split(split_info &si, LPPartition candidate, const int current_l, cons
 }
 
 // a version of best_split for MAP estimation
-void best_split_map(split_info &si, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const bool merge_flag)
+void best_split_map(split_info &si, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const bool merge_flag)
 {
   if(si.num_splits > 0){
     LPPartition max_candidate = new Partition(init_particle);
-    double max_objective = total_log_post(max_candidate, nu_sigma, lambda_sigma);
+    double max_objective = total_log_post(max_candidate, total_ss, T, nu_sigma, lambda_sigma);
     LPPartition tmp_candidate = new Partition(init_particle);
     double tmp_objective = 0.0;
     
@@ -1187,12 +1056,12 @@ void best_split_map(split_info &si, LPPartition candidate, LPPartition init_part
             Rcpp::Rcout << endl;
           }
           Rcpp::Rcout << "Before split candidate is" << endl;
-          init_particle->Print_Partition(nu_sigma, lambda_sigma);
+          init_particle->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
           Rcpp::Rcout << "The candidate is now" << endl;
-          tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+          tmp_candidate->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
           Rcpp::stop("Terminating");
         } // closes if checking whether there is something wrong with the partition
-        tmp_objective = total_log_post(tmp_candidate, nu_sigma, lambda_sigma);
+        tmp_objective = total_log_post(tmp_candidate, total_ss, T, nu_sigma, lambda_sigma);
         if(tmp_objective > max_objective){
           delete max_candidate;
           max_candidate = new Partition(tmp_candidate);
@@ -1222,12 +1091,12 @@ void best_split_map(split_info &si, LPPartition candidate, LPPartition init_part
             Rcpp::Rcout << endl;
           }
           Rcpp::Rcout << "Before split candidate is" << endl;
-          init_particle->Print_Partition(nu_sigma, lambda_sigma);
+          init_particle->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
           Rcpp::Rcout << "The candidate is now" << endl;
-          tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+          tmp_candidate->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
           Rcpp::stop("Terminating");
         } // closes if checking whether there is something wrong with the partition
-        tmp_objective = total_log_post(tmp_candidate, nu_sigma, lambda_sigma);
+        tmp_objective = total_log_post(tmp_candidate, total_ss, T, nu_sigma, lambda_sigma);
         if(tmp_objective > max_objective){
           delete max_candidate;
           max_candidate = new Partition(tmp_candidate);
@@ -1252,12 +1121,12 @@ void best_split_map(split_info &si, LPPartition candidate, LPPartition init_part
                 Rcpp::Rcout << endl;
               }
               Rcpp::Rcout << "Before split candidate is" << endl;
-              init_particle->Print_Partition(nu_sigma, lambda_sigma);
+              init_particle->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
               Rcpp::Rcout << "The candidate is now" << endl;
-              tmp_candidate->Print_Partition(nu_sigma, lambda_sigma);
+              tmp_candidate->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
               Rcpp::stop("Terminating");
             } // closes if checking whether there is something wrong with the partition
-            tmp_objective = total_log_post(tmp_candidate, nu_sigma, lambda_sigma);
+            tmp_objective = total_log_post(tmp_candidate, total_ss, T, nu_sigma, lambda_sigma);
             if(tmp_objective > max_objective){
               delete max_candidate;
               max_candidate = new Partition(tmp_candidate);
@@ -1274,13 +1143,13 @@ void best_split_map(split_info &si, LPPartition candidate, LPPartition init_part
   
 }
 
-void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda)
+void best_merge(merge_info &mi, LPPartition candidate, const int current_l, const std::vector<LPPartition> particle_set, const std::vector<double> w, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta, const double lambda)
 {
   
   if(mi.num_merges > 0){
     LPPartition max_candidate = new Partition(particle_set[current_l]);
     //double max_objective = w[current_l]*total_log_post(max_candidate, a_sigma, nu_sigma) + lambda * Entropy(current_l, max_candidate, particle_set, w);
-    double max_objective = w[current_l]*total_log_post(max_candidate, nu_sigma, lambda_sigma) + lambda * Entropy(current_l, max_candidate, particle_set, w);
+    double max_objective = w[current_l]*total_log_post(max_candidate, total_ss, T, nu_sigma, lambda_sigma) + lambda * Entropy(current_l, max_candidate, particle_set, w);
     LPPartition tmp_candidate = new Partition(particle_set[current_l]); // the running candidate
     double tmp_objective = 0.0;
     
@@ -1288,10 +1157,7 @@ void best_merge(merge_info &mi, LPPartition candidate, const int current_l, cons
       delete tmp_candidate;
       tmp_candidate = new Partition(particle_set[current_l]);
       tmp_candidate->Merge(mi.rec_k[m_ix], mi.donor_k[m_ix], ybar, T, A_block, rho, a1, a2, eta);
-      //Rcpp::Rcout << "tmp_candidate currently" << endl;
-      //tmp_candidate->Print_Partition();
-      //tmp_objective = w[current_l]*total_log_post(tmp_candidate, a_sigma, nu_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
-      tmp_objective = w[current_l]*total_log_post(tmp_candidate, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
+      tmp_objective = w[current_l]*total_log_post(tmp_candidate, total_ss, T, nu_sigma, lambda_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
       if(tmp_objective > max_objective){
         //Rcpp::Rcout << "[best merge]: max_candidate." << endl;
         delete max_candidate;
@@ -1307,12 +1173,12 @@ void best_merge(merge_info &mi, LPPartition candidate, const int current_l, cons
 }
 
 
-void best_merge_map(merge_info &mi, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta)
+void best_merge_map(merge_info &mi, LPPartition candidate, LPPartition init_particle, const arma::vec &ybar, const double total_ss, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double nu_sigma, const double lambda_sigma, const double eta)
 {
   
   if(mi.num_merges > 0){
     LPPartition max_candidate = new Partition(init_particle);
-    double max_objective = total_log_post(max_candidate, nu_sigma, lambda_sigma);
+    double max_objective = total_log_post(max_candidate, total_ss, T, nu_sigma, lambda_sigma);
     LPPartition tmp_candidate = new Partition(init_particle); // the running candidate
     double tmp_objective = 0.0;
     
@@ -1320,10 +1186,7 @@ void best_merge_map(merge_info &mi, LPPartition candidate, LPPartition init_part
       delete tmp_candidate;
       tmp_candidate = new Partition(init_particle);
       tmp_candidate->Merge(mi.rec_k[m_ix], mi.donor_k[m_ix], ybar, T, A_block, rho, a1, a2, eta);
-      //Rcpp::Rcout << "tmp_candidate currently" << endl;
-      //tmp_candidate->Print_Partition();
-      //tmp_objective = w[current_l]*total_log_post(tmp_candidate, a_sigma, nu_sigma) + lambda*Entropy(current_l, tmp_candidate, particle_set, w);
-      tmp_objective = total_log_post(tmp_candidate, nu_sigma, lambda_sigma);
+      tmp_objective = total_log_post(tmp_candidate, total_ss, T, nu_sigma, lambda_sigma);
       if(tmp_objective > max_objective){
         //Rcpp::Rcout << "[best merge]: max_candidate." << endl;
         delete max_candidate;

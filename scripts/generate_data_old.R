@@ -1,4 +1,3 @@
-# Generate new datasets
 #################
 # Generate two sets of data to test the code
 #################
@@ -63,12 +62,8 @@ gamma_2_large <- list(c(quad_1_large, quad_2_large), c(quad_3_large, quad_4_larg
 gamma_3_large <- list(quad_1_large, quad_2_large, c(quad_3_large, quad_4_large))
 gamma_4_large <- list(quad_1_large, quad_2_large, quad_3_large, quad_4_large)
 
-path <- "~/Dropbox/Particle EM Spatial Clustering/sameer_sim/spring2019/"
-
-save(gamma_0_small, gamma_1_small, gamma_2_small, gamma_3_small, gamma_4_small, A_block_small, file = paste0(path, "data/partitions_small.RData"))
-
-     
-save(gamma_0_large, gamma_1_large, gamma_2_large, gamma_3_large, gamma_4_large, A_block_large, file = paste0(path, "data/partitions_large.RData"))
+save(gamma_0_small, gamma_1_small, gamma_2_small, gamma_3_small, gamma_4_small, A_block_small, file = "data/partitions_small.RData")
+save(gamma_0_large, gamma_1_large, gamma_2_large, gamma_3_large, gamma_4_large, A_block_large, file = "data/partitions_large.RData")
 ########################
 # Generate alpha
 ########################
@@ -96,8 +91,9 @@ alpha_bar_2_large <- c(0, -2, 2, 0)
 alpha_bar_3_large <- c(-2, -5, 5, 1)
 
 
-
-T <- 12
+# We will work with data from 2006 to 2015
+T <- 10
+n_sim <- 500
 seed_list <- c(12991, 72460, 60357)
 for(sim_number in 1:3){
   alpha_bar_small <- get(paste0("alpha_bar_", sim_number, "_small"))
@@ -109,8 +105,10 @@ for(sim_number in 1:3){
   alpha_small <- rep(NA, times = N_small)
   alpha_large <- rep(NA, times = N_large)
   
-  y_small <- matrix(NA, nrow = N_small, ncol = T)
-  y_large <- matrix(NA, nrow = N_large, ncol = T)
+  ybar_small <- matrix(NA, nrow = N_small, ncol = n_sim)
+  ybar_large <- matrix(NA, nrow = N_large, ncol = n_sim)
+  
+
   
   for(k in 1:K_small){
     n_k <- config_small[k]
@@ -121,6 +119,7 @@ for(sim_number in 1:3){
     Sigma_alpha <- solve(Omega_alpha)
     set.seed(seed_list[sim_number] + k)
     alpha_small[gamma_0_small[[k]]] <- mvrnorm(n = 1, mu = rep(alpha_bar_small[k], times = n_k), Sigma = a1_small * sigma2 * Sigma_alpha)
+    ybar_small[gamma_0_small[[k]],] <- rnorm(n = n_k * n_sim, mean = alpha_small[gamma_0_small[[k]]], sd = sqrt(sigma2)/T)
   }
   for(k in 1:K_large){
     n_k <- config_large[k]
@@ -131,37 +130,46 @@ for(sim_number in 1:3){
     Sigma_alpha <- solve(Omega_alpha)
     set.seed(seed_list[sim_number] + k)
     alpha_large[gamma_0_large[[k]]] <- mvrnorm(n = 1, mu = rep(alpha_bar_large[k], times = n_k), Sigma = a1_large * sigma2 * Sigma_alpha)
+    ybar_large[gamma_0_large[[k]],] <- rnorm(n = n_k * n_sim, mean = alpha_large[gamma_0_large[[k]]], sd = sqrt(sigma2)/T)
   }
-  
-  # at this point alpha_small and alpha_large have been set
-  for(t in 1:T){
-    y_small[,t] <- rnorm(n = N_small, mean = alpha_small, sd = sqrt(sigma2))
-    y_large[,t] <- rnorm(n = N_large, mean = alpha_large, sd = sqrt(sigma2))
-  }
-  
   
   assign(paste0("alpha_", sim_number, "_small"), alpha_small)
   assign(paste0("alpha_", sim_number, "_large"), alpha_large)
-  assign(paste0("y_", sim_number, "_small"), y_small)
-  assign(paste0("y_", sim_number, "_large"), y_large)
+  assign(paste0("ybar_", sim_number, "_small"), ybar_small)
+  assign(paste0("ybar_", sim_number, "_large"), ybar_large)
   
   assign(paste0("sigma2_", sim_number), sigma2)
 }
 
-save(alpha_bar_1_small, alpha_1_small, y_1_small, sigma2_1, file = paste0(path, "data/small_example_1.RData"))
-save(alpha_bar_2_small, alpha_2_small, y_2_small, sigma2_2, file = paste0(path, "data/small_example_2.RData"))
-save(alpha_bar_3_small, alpha_3_small, y_3_small, sigma2_3, file = paste0(path, "data/small_example_3.RData"))
+# Save all of the alphas and ybar's in .RData files. These will NOT sit on GitHub
+save(alpha_bar_1_small, alpha_1_small, ybar_1_small, sigma2_1, file = "data/small_example_1.RData")
+save(alpha_bar_2_small, alpha_2_small, ybar_2_small, sigma2_2, file = "data/small_example_2.RData")
+save(alpha_bar_3_small, alpha_3_small, ybar_3_small, sigma2_3, file = "data/small_example_3.RData")
 
-save(alpha_bar_1_large, alpha_1_large, y_1_large, sigma2_1, file = paste0(path, "data/large_example_1.RData"))
-save(alpha_bar_2_large, alpha_2_large, y_2_large, sigma2_2, file = paste0(path, "data/large_example_2.RData"))
-save(alpha_bar_3_large, alpha_3_large, y_3_large, sigma2_3, file = paste0(path, "data/large_example_3.RData"))
+save(alpha_bar_1_large, alpha_1_large, ybar_1_large, sigma2_1, file = "data/large_example_1.RData")
+save(alpha_bar_2_large, alpha_2_large, ybar_2_large, sigma2_2, file = "data/large_example_2.RData")
+save(alpha_bar_3_large, alpha_3_large, ybar_3_large, sigma2_3, file = "data/large_example_3.RData")
 
+# Save some alpha values as a csv ... these will sit on GitHub
+alpha_small_df <- data.frame("sim1" = alpha_1_small, "sim2" = alpha_2_small, "sim3" = alpha_3_small)
+alpha_large_df <- data.frame("sim1" = alpha_1_large, "sim2" = alpha_2_large, "sim3" = alpha_3_large)
 
-# Get the maximum values. This is primarily for plotting purposes
-max_value_small <- ceiling(max(c(abs(y_1_small), abs(y_2_small), abs(y_3_small), 
-                                 abs(alpha_1_small), abs(alpha_2_small), abs(alpha_3_small))))
+y_small_df <- data.frame("sim1" = ybar_1_small[,1], "sim2" = ybar_2_small[,1], "sim3" = ybar_3_small[,1])
+y_large_df <- data.frame("sim1" = ybar_1_large[,1], "sim2" = ybar_2_large[,1], "sim3" = ybar_3_large[,1])
 
-max_value_large <- ceiling(max(c(abs(y_1_large), abs(y_2_large), abs(y_3_large), 
+write.csv(alpha_small_df, col.names = TRUE, row.names = FALSE, file = "data/alpha_small.csv")
+write.csv(alpha_large_df, col.names = TRUE, row.names = FALSE, file = "data/alpha_large.csv")
+write.csv(y_small_df, col.names = TRUE, row.names = FALSE, file = "data/ybar_small.csv")
+write.csv(y_large_df, col.names = TRUE, row.names = FALSE, file = "data/ybar_large.csv")
+
+write.csv(A_block_small, col.names = FALSE, row.names = FALSE, file = "data/A_block_small.csv")
+write.csv(A_block_large, col.names = FALSE, row.names = FALSE, file = "data/A_block_large.csv")
+
+# Get the correct scaling: this is primarily for plotting purposes
+max_value_small <- ceiling(max(c(abs(ybar_1_small), abs(ybar_2_small), abs(ybar_3_small), 
+                           abs(alpha_1_small), abs(alpha_2_small), abs(alpha_3_small))))
+
+max_value_large <- ceiling(max(c(abs(ybar_1_large), abs(ybar_2_large), abs(ybar_3_large), 
                                  abs(alpha_1_large), abs(alpha_2_large), abs(alpha_3_large) )))
 
 max_value <- max(max_value_small, max_value_large)
@@ -173,7 +181,5 @@ scaled_alpha_1_large <- rescale(alpha_1_large, to = c(0,1), from = c(-1*max_valu
 scaled_alpha_2_large <- rescale(alpha_2_large, to = c(0,1), from = c(-1*max_value, 1*max_value))
 scaled_alpha_3_large <- rescale(alpha_3_large, to = c(0,1), from = c(-1*max_value, 1*max_value))
 
-save(scaled_alpha_1_small, scaled_alpha_2_small, scaled_alpha_3_small, max_value, file = paste0(path, "data/scaled_alpha_small.RData"))
-save(scaled_alpha_1_large, scaled_alpha_2_large, scaled_alpha_3_large, max_value, file = paste0(path, "data/scaled_alpha_large.RData"))
-
-
+save(scaled_alpha_1_small, scaled_alpha_2_small, scaled_alpha_3_small, max_value, file = "data/scaled_alpha_small.RData")
+save(scaled_alpha_1_large, scaled_alpha_2_large, scaled_alpha_3_large, max_value, file = "data/scaled_alpha_large.RData")
