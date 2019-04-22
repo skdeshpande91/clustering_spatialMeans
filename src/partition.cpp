@@ -131,8 +131,7 @@ Partition::Partition(int n, Rcpp::List gamma_init, const arma::vec &ybar, const 
 
 Partition::~Partition(){}
 
-//void Partition::Print_Partition(double a_sigma, double nu_sigma)
-void Partition::Print_Partition(double nu_sigma, double lambda_sigma)
+void Partition::Print_Partition(const double total_ss, const int T, double nu_sigma, double lambda_sigma)
 {
   Rcpp::Rcout << "nObs = " << nObs << endl;
   Rcpp::Rcout << "K = " << K << endl;
@@ -174,8 +173,8 @@ void Partition::Print_Partition(double nu_sigma, double lambda_sigma)
     log_det += log_det_Omegay[k];
     quad_form += y_Omegay_y[k];
   }
-  //log_like = 0.5 * log_det - (a_sigma + nObs/2) * log( (nu_sigma + quad_form)/2);
-  log_like = 0.5 * log_det - ( (nu_sigma + nObs)/2) * log( (nu_sigma * lambda_sigma + quad_form)/2);
+  //log_like = 0.5 * log_det - ( (nu_sigma + nObs)/2) * log( (nu_sigma * lambda_sigma + quad_form)/2);
+  log_like = 0.5 * log_det - ( (nu_sigma + ((double) T) * ((double) nObs))/2 ) * log( (nu_sigma + lambda_sigma + quad_form + total_ss) / 2);
   Rcpp::Rcout << "Log-likelihood: " << log_like;
   
   

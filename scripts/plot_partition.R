@@ -121,6 +121,12 @@ plot_particle_set_grid<- function(results,A_block, max_value = NULL){
   
   
 }
-
+plot_particle_trajectory <- function(iter, particle_set_traj, A_block, log_post){
+  L_star <- length(particle_set[[iter]])
+  n_side <- ceiling(sqrt(L_star))
+  par(mar = c(1,1,2,1), mgp = c(1.8, 0.5, 0), mfrow = c(n_side, n_side), cex.main = 0.7)
+  for(l in 1:L_star) plot_partition_grid(particle_set_traj[[iter]][[l]], A_block, title = paste0("log-post = ", round(log_post[l,iter], digits = 3)))
+  
+}
 
 
