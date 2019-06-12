@@ -60,25 +60,42 @@ config_large <- tmp_large$config
 set.seed(129)
 sigma2 <- 1/rgamma(1, shape = 3/2, rate = 3/2) # sigma2 ~ 3/chi-square_3
 
+alpha_bar1 <- c(0, -5, 3, 1)
+alpha_bar2 <- c(0, -2, 3, 1)
+
 #alpha_bar <- c(0, 3, -2, 1.25)
-alpha_bar <- c(0, -2, 3, 1)
+#alpha_bar <- c(0, -2, 3, 1)
 T <- 12
-alpha <- rep(NA, times = N_large)
-y <- matrix(NA, nrow = N_large, ncol = T)
-set.seed(724)
+alpha1 <- rep(NA, times = N_large)
+alpha2 <- rep(NA, times = N_large)
+
+y1 <- matrix(NA, nrow = N_large, ncol = T)
+y2 <- matrix(NA, nrow = N_large, ncol = T)
+
+set.seed(1991)
 for(k in 1:K_large){
-  alpha[gamma_0_large[[k]]] <- runif(config_large[k], alpha_bar[k] - 0.75, alpha_bar[k] + 0.75)
+  alpha1[gamma_0_large[[k]]] <- runif(config_large[k], alpha_bar1[k] - 0.75, alpha_bar1[k] + 0.75)
+  alpha2[gamma_0_large[[k]]] <- runif(config_large[k], alpha_bar2[k] - 0.75, alpha_bar2[k] + 0.75)
   for(i in gamma_0_large[[k]]){
-    y[i,] <- rnorm(T, mean = alpha[i], sd = sqrt(sigma2))
+    y1[i,] <- rnorm(T, mean = alpha1[i], sd = sqrt(sigma2))
+    y2[i,] <- rnorm(T, mean = alpha2[i], sd = sqrt(sigma2))
   }
 }
 
-max_value <- max(c(abs(y),abs(alpha)))
+#max_value <- max(c(abs(y1),abs(alpha1), abs(y2), abs(alpha2)))
+max_value <- max(abs(alpha1), abs(alpha2), abs(rowMeans(y1)), abs(rowMeans(y2)))
 
-plot_partition_grid(gamma_0_large, A_block_large, values = alpha, max_value = max_value)
+
+save(gamma_0_large, gamma_1_large, gamma_2_large, gamma_3_large, gamma_4_large,
+     A_block_large, alpha_bar1, alpha_bar2, alpha1, alpha2, y1, y2, sigma2, max_value,
+     file = "data/may31_sim_data.RData")
 
 
-test_map0 <- map_partition(y, A_block_large, gamma_0_large, a1 = 1/10, a2 = 10, max_iter = 20)
+
+plot_partition_grid(gamma_1_large, A_block_large, values = alpha1, max_value = max_value)
+plot_partition_grid(gamma_1_large, A_block_large, values = alpha2, max_value = max_value)
+
+test1_map0 <- map_partition(y1, A_block_large, gamma_0_large, a1 = 1/10, a2 = 10, max_iter = 20)
 test_map1 <- map_partition(y, A_block_large, gamma_1_large, a1 = 1/10, a2 = 10, max_iter = 20)
 
 test_particle0 <- ensm_cluster_mean(y, A_block_large, L = 5, gamma_0_large,

@@ -33,7 +33,8 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
                               const double rho = 0.99,
                               const double lambda = 1.0, const double eta = 1.0,
                               const int max_iter = 10, const double eps = 1e-3,
-                              const double split_frac = 0.1)
+                              const double split_frac = 0.1,
+                             bool verbose = false)
 {
   
   int n = Y.n_rows;
@@ -47,7 +48,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   }
 
   LPPartition gamma_0 = new Partition(n, gamma_init, ybar, T, A_block, rho, a1, a2, eta);
-  Rcpp::Rcout << "Created gamma_0" << endl;
+  if(verbose == true) Rcpp::Rcout << "Created gamma_0" << endl;
   
   // create a particle set
   std::vector<LPPartition> particle_set(L);
@@ -58,7 +59,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   }
   
   
-  Rcpp::Rcout << "Initialized the particle set" << endl;
+  if(verbose == true) Rcpp::Rcout << "Initialized the particle set" << endl;
   
   // now that we are tracking the trajectory, we no longer need this
   /*
@@ -163,12 +164,12 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   int time1 = time(&tp);
   
   while((iter < max_iter) & (flag == 0)){
-    Rcpp::Rcout << "[ensm_cluster_mean]: Starting iter " << iter << endl;
+    if(verbose == true) Rcpp::Rcout << "[ensm_cluster_mean]: Starting iter " << iter << endl;
     old_objective = objective;
     
     conv_counter = 0; // counts the number of particles unchanged in our sweep
     for(int l = 0; l < L; l++){
-      Rcpp::Rcout << "Starting to update particle " << l << endl;
+      if(verbose == true) Rcpp::Rcout << "Starting to update particle " << l << endl;
       Rcpp::checkUserInterrupt();
       spec_split_flag = 1;
       tail_split_flag = 1;
@@ -281,7 +282,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
     update_w(particle_set, w, L, total_ss, T, nu_sigma, lambda_sigma, lambda);
     
     if(conv_counter == L){
-      Rcpp::Rcout << "  None of the particles moved on this sweep!" << endl;
+      if(verbose == true) Rcpp::Rcout << "  None of the particles moved on this sweep!" << endl;
       flag = 1;
     }
     // compute the objective
@@ -308,8 +309,8 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
     log_post_trajectory.push_back(tmp_log_post);
     alpha_trajectory.push_back(tmp_alpha_hat);
     
-    Rcpp::Rcout << "   Number of stationary particles = " << conv_counter << endl;
-    Rcpp::Rcout << "   objective = " << objective << "   old_objective = " << old_objective << "  %diff = " << 100.0 * abs( (objective - old_objective)/objective) << endl;
+    if(verbose == true) Rcpp::Rcout << "   Number of stationary particles = " << conv_counter << endl;
+    if(verbose == true) Rcpp::Rcout << "   objective = " << objective << "   old_objective = " << old_objective << "  %diff = " << 100.0 * abs( (objective - old_objective)/objective) << endl;
     
     iter++;
   } // closes the main loop
@@ -403,14 +404,17 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   results["log_like"] = log_like;
   results["log_prior"] = log_prior;
   results["log_post"] = log_post;
-  results["alpha"] = alpha_hat_particle;
+  //results["alpha"] = alpha_hat_particle;
+  results["alpha"] = alpha_hat_wtd.col(L_star-1); // return the full estimate
+  results["alpha_hat_particle"] = alpha_hat_particle;
+  results["alpha_hat_wtd"] = alpha_hat_wtd;
   results["time"] = time2 - time1;
-  results["objective_trajectory"] = objective_trajectory;
-  results["particle_trajectory"] = particle_trajectory_out;
-  results["log_prior_trajectory"] = log_prior_trajectory_out;
-  results["log_like_trajectory"] = log_like_trajectory_out;
-  results["log_post_trajectory"] = log_post_trajectory_out;
-  results["alpha_trajectory"] = alpha_trajectory_out;
+  //results["objective_trajectory"] = objective_trajectory;
+  //results["particle_trajectory"] = particle_trajectory_out;
+  //results["log_prior_trajectory"] = log_prior_trajectory_out;
+  //results["log_like_trajectory"] = log_like_trajectory_out;
+  //results["log_post_trajectory"] = log_post_trajectory_out;
+  //results["alpha_trajectory"] = alpha_trajectory_out;
   //results["alpha_hat_particle"] = alpha_hat_particle;
   //results["alpha_hat_wtd"] = alpha_hat_wtd;
   return(results);

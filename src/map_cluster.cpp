@@ -27,7 +27,8 @@ Rcpp::List map_partition(arma::mat Y,
                          const double rho = 0.99,
                          const double eta = 1.0,
                          const int max_iter = 10, const double eps = 1e-3,
-                         const double split_frac = 0.1)
+                         const double split_frac = 0.1,
+                         bool verbose = false)
 {
   int n = Y.n_rows;
   int T = Y.n_cols;
@@ -38,9 +39,9 @@ Rcpp::List map_partition(arma::mat Y,
     ybar(i) = arma::mean(Y.row(i));
     total_ss += (T-1) * arma::var(Y.row(i));
   }
-  Rcpp::Rcout << "n = " << n << endl;
+  if(verbose == true) Rcpp::Rcout << "n = " << n << endl;
   LPPartition gamma_0 = new Partition(n, gamma_init, ybar, T, A_block, rho, a1, a2, eta);
-  Rcpp::Rcout << "Created gamma_0" << endl;
+  if(verbose == true) Rcpp::Rcout << "Created gamma_0" << endl;
   
   // for the main loop, we need the following quantities
   LPPartition spec_split_candidate = new Partition(gamma_0); // for spectral splits
@@ -109,7 +110,7 @@ Rcpp::List map_partition(arma::mat Y,
   time_t tp;
   int time1 = time(&tp);
   while( (iter < max_iter) & (flag == 0)){
-    Rcpp::Rcout << "Starting iter = " << iter << endl;
+    if(verbose == true) Rcpp::Rcout << "Starting iter = " << iter << endl;
     old_objective = objective;
     Rcpp::checkUserInterrupt();
     spec_split_flag = 1;
@@ -182,7 +183,7 @@ Rcpp::List map_partition(arma::mat Y,
     if(island_obj > accepted_obj) accepted_obj = island_obj;
     
     if(try_local == true){
-      Rcpp::Rcout << "Trying local moves" << endl;
+      if(verbose == true) Rcpp::Rcout << "Trying local moves" << endl;
       get_local(local_si, particle_set[0], T, A_block, rho, a1, a2);
       delete local_candidate;
       local_candidate = new Partition(particle_set[0]);
@@ -233,7 +234,7 @@ Rcpp::List map_partition(arma::mat Y,
     }
     //Rcpp::Rcout << "flag = " << flag << endl;
     objective = total_log_post(particle_set[0], total_ss, T, nu_sigma, lambda_sigma);
-    Rcpp::Rcout << "objective = " << objective << "  old_objective = " << old_objective << " % diff = " << 100.0 * abs( (objective - old_objective)/objective) << endl;
+    if(verbose == true) Rcpp::Rcout << "objective = " << objective << "  old_objective = " << old_objective << " % diff = " << 100.0 * abs( (objective - old_objective)/objective) << endl;
     iter++;
     
     
@@ -265,12 +266,12 @@ Rcpp::List map_partition(arma::mat Y,
   results["log_post"] = total_log_post(particle_set[0], total_ss, T, nu_sigma, lambda_sigma);
   results["alpha"] = particle_set[0]->alpha_hat;
   results["time"] = time2- time1;
-  results["particle_trajectory"] = particle_set_trajectory_out;
-  results["log_like_trajectory"] = log_like_trajectory;
-  results["log_prior_trajectory"] = log_prior_trajectory;
-  results["log_post_trajectory"] = log_post_trajectory;
-  results["objective_trajectory"] = objective_trajectory;
-  results["alpha_trajectory"] = alpha_trajectory_out;
+  //results["particle_trajectory"] = particle_set_trajectory_out;
+  //results["log_like_trajectory"] = log_like_trajectory;
+  //results["log_prior_trajectory"] = log_prior_trajectory;
+  //results["log_post_trajectory"] = log_post_trajectory;
+  //results["objective_trajectory"] = objective_trajectory;
+  //results["alpha_trajectory"] = alpha_trajectory_out;
   
   return(results);
 }

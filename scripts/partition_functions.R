@@ -70,9 +70,9 @@ partition_modify <- function(gamma, A_block){
   return(gamma_new)
 }
 
-partition_equal <- function(gamma_1, gamma_2, A_block){
-  tmp_1 <- partition_config(gamma_1, A_block)
-  tmp_2 <- partition_config(gamma_2, A_block)
+partition_equal <- function(gamma1, gamma2, A_block){
+  tmp_1 <- partition_config(gamma1, A_block)
+  tmp_2 <- partition_config(gamma2, A_block)
   
   K_1 <- tmp_1$K
   K_2 <- tmp_2$K
@@ -87,11 +87,59 @@ partition_equal <- function(gamma_1, gamma_2, A_block){
     i <- 0
     while(i < K_1 & flag == TRUE){
       i <- i+1
-      flag <- any(sapply(gamma_2, FUN = sorted_equal, gamma_1[[i]]))
+      flag <- any(sapply(gamma2, FUN = sorted_equal, gamma1[[i]]))
     }
   }
   return(flag)
 }
 
+vi_distance <- function(N, gamma1, gamma2){
+  # Create the N matrix
+  k1 <- length(gamma1)
+  k2 <- length(gamma2)
+  counts <- matrix(0, nrow = k1, ncol = k2)
+  for(k in 1:k1){
+    for(kk in 1:k2){
+      counts[k,kk] <- length(intersect(gamma1[[k]], gamma2[[kk]]))
+    }
+  }
+  row_sums <- rowSums(counts)
+  col_sums <- colSums(counts)
+  dist <- sum(row_sums/N * log(row_sums/N)) + sum(col_sums/N * log(col_sums/N))
+  for(k in 1:k1){
+    for(kk in 1:k2){
+      if(counts[k,kk] > 0){
+        dist <- dist -2 * counts[k,kk]/N * log(counts[k,kk]/N)
+      }
+    }
+  }
+  
+  return(dist)
+}
 
 
+binder_loss <- function(N, gamma1, gamma2){
+  
+  k1 <- length(gamma1)
+  k2 <- length(gamma2)
+  counts <- matrix(nrow = k1, ncol = k2)
+  # need matrix of counts n_ij counting the number of indices that belong to cluster k in gamma1 and cluster kk in gamma2
+  for(k in 1:k1){
+    for(kk in 1:k2){
+      counts[k,kk] <- length(intersect(gamma1[[k]], gamma2[[kk]]))
+    }
+  }
+  row_sums <- rowSums(counts)
+  col_sums <- colSums(counts)
+  dist <- sum( (row_sums/N)^2) + sum( (col_sums/N)^2)
+  for(k in 1:k1){
+    for(kk in 1:k2){
+      if(counts[k,kk] > 0){
+        dist <- dist - 2 * (counts[k,kk]/N)^2
+      }
+    }
+  }
+  
+  return(dist)
+  
+}
