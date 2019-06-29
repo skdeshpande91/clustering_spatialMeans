@@ -129,7 +129,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   for(int l = 0; l < L; l++) objective += w[l] * total_log_post(particle_set[l], total_ss, T, nu_sigma, lambda_sigma);
   
   // Prepare containers to track the trajectories of the particle system
-  
+  /*
   std::vector<double> objective_trajectory;
   objective_trajectory.push_back(objective);
   
@@ -159,7 +159,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   log_prior_trajectory.push_back(tmp_log_prior);
   log_post_trajectory.push_back(tmp_log_post);
   alpha_trajectory.push_back(tmp_alpha_hat);
-
+  */
   time_t tp;
   int time1 = time(&tp);
   
@@ -287,6 +287,10 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
     }
     // compute the objective
     objective = lambda * Entropy(0, particle_set[0], particle_set, w);
+    
+    for(int l = 0; l < L; l++) objective += w[l] * total_log_post(particle_set[l], total_ss, T, nu_sigma, lambda_sigma);
+    
+    /*
     for(int l = 0; l < L; l++){
       objective += w[l] * total_log_post(particle_set[l], total_ss, T, nu_sigma, lambda_sigma);
       tmp_log_like[l] = total_log_like(particle_set[l], total_ss, T, nu_sigma, lambda_sigma);
@@ -294,6 +298,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
       tmp_log_post[l] = total_log_post(particle_set[l], total_ss, T, nu_sigma, lambda_sigma);
       for(int i = 0; i < n; i++) tmp_alpha_hat[l][i] = particle_set[l]->alpha_hat[i];
     }
+    */
     /*
      if(abs((objective - old_objective)/old_objective) < 0.01 * eps){
      Rcpp::Rcout << "[ensm_cluster_mean]: Objective has not increased much" << endl;
@@ -301,6 +306,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
      }
      */
     // update the trajectories
+    /*
     objective_trajectory.push_back(objective);
     format_particle_set(particle_set, tmp_list);
     particle_set_trajectory.push_back(tmp_list);
@@ -308,6 +314,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
     log_prior_trajectory.push_back(tmp_log_prior);
     log_post_trajectory.push_back(tmp_log_post);
     alpha_trajectory.push_back(tmp_alpha_hat);
+    */
     
     if(verbose == true) Rcpp::Rcout << "   Number of stationary particles = " << conv_counter << endl;
     if(verbose == true) Rcpp::Rcout << "   objective = " << objective << "   old_objective = " << old_objective << "  %diff = " << 100.0 * abs( (objective - old_objective)/objective) << endl;
@@ -341,6 +348,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   
   // Prepare the trajectory of the particle set for output
   // Also compute the log-likelihood, log-prior, and log-posterior for every particle visited by the system
+  /*
   Rcpp::List particle_trajectory_out(particle_set_trajectory.size());
   arma::mat log_like_trajectory_out(log_like_trajectory.size(),L);
   arma::mat log_prior_trajectory_out(log_prior_trajectory.size(),L);
@@ -358,6 +366,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
       }
     }
   }
+  */
 
   /*
   Rcpp::Rcout << "Looking now at log-post trajectory" << endl;
