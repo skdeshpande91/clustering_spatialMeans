@@ -53,9 +53,9 @@ void get_merge(merge_info &mi, LPPartition gamma_l, const arma::mat &A_block);
 void get_spectral_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const int reps);
 void get_tail_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double tail_frac);
 void get_km_split(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const int reps);
-
-
 void get_local(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2);
+
+double score_partition(LPPartition candidate, const arma::vec &ybar);
 
 
 

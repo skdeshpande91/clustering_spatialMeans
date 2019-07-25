@@ -256,6 +256,30 @@ void update_w(std::vector<LPPartition> particle_set, std::vector<double> &w, con
   }
 }
 
+double score_partition(LPPartition candidate, const arma::vec &y_bar)
+{
+  // compute the within cluster sum of squares and add a penalty of the form total within-cluster sum of squares + 1 * (K - 1)
+  double score = (double) candidate->K;
+  double sum = 0.0;
+  double sum2 = 0.0;
+  int n_k = 0;
+  for(int k = 0; k < candidate->K; k++){
+    sum = 0.0;
+    sum2 = 0.0;
+    n_k = candidate->cluster_config[k];
+    for(int i = 0; i < ; i++){
+      sum += ybar(candidate->clusters[k][i]);
+      sum2 += ybar(candidate->clusters[k][i] * candidate->clusters[k][i]);
+    }
+    score += sum2 - 1.0/( (double) n_k) * sum * sum;
+  }
+  return score;
+  
+  
+}
+
+
+
 
 void get_island(split_info &si, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double island_frac)
 {
@@ -279,7 +303,6 @@ void get_island(split_info &si, LPPartition gamma_l, const int T, const arma::ma
   std::vector<std::vector<int> > tmp_new_clusters; // will contains connected components of remain and the island
   std::vector<std::vector<int> > new_clusters; // holds the new connected sub-clusters created
   std::vector<int> k_star; // holds the labels of nearest neighbors of new sub-clusters
-  
   
   for(int k = 0; k < orig_K; k++){
     n_k = gamma_l->cluster_config[k];
