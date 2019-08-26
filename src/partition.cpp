@@ -129,6 +129,35 @@ Partition::Partition(int n, Rcpp::List gamma_init, const arma::vec &ybar, const 
   get_pairwise();
 }
 
+Partition::Partition(int n, std::vector<std::vector<int> > init_clusters, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double eta)
+{
+  nObs = n;
+  K = init_clusters.size();
+  cluster_config = std::vector<int>(K,0);
+  cluster_assignment = std::vector<int>(nObs,0);
+  clusters = init_clusters;
+  pairwise_assignment = arma::zeros<arma::mat>(nObs, nObs);
+  log_det_Omegay = std::vector<double>(K, 0.0);
+  y_Omegay_y = std::vector<double>(K, 0.0);
+  
+  log_prior = std::vector<double>(K, 0.0);
+  alpha_hat = std::vector<double>(nObs,0.0);
+  alpha_bar = std::vector<double>(K,0.0);
+  
+  for(int k = 0; k < K; k++){
+    cluster_config[k] = init_clusters[k].size();
+    for(int i = 0; i < cluster_config[k]; i++){
+      cluster_assignment[clusters[k][i]] = k;
+    }
+    get_Omega(k, ybar, T, A_block, rho, a1, a2);
+    alpha_postmean(k, ybar, T, A_block, rho, a1, a2);
+    log_pi_ep(k, eta);
+  }
+  get_pairwise();
+}
+
+
+
 Partition::~Partition(){}
 
 void Partition::Print_Partition(const double total_ss, const int T, double nu_sigma, double lambda_sigma)

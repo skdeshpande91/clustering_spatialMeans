@@ -53,6 +53,7 @@ public:
   Partition();// constructor
   Partition(LPPartition initial_partition);
   Partition(int n, Rcpp::List gamma_init, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double eta);
+  Partition(int n, std::vector<std::vector<int> > init_clusters, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double eta);
   ~Partition(); // destructor
 public:
   void Print_Partition(const double total_ss, const int T, double nu_sigma, double lambda_sigma);
