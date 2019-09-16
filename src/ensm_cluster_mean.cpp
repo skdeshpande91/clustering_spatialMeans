@@ -10,6 +10,7 @@
 
 #include "partition.h"
 #include "partition_functions.h"
+#include "initialize_particle_set.h"
 #include <vector>
 #include <ctime>
 
@@ -24,8 +25,7 @@ using Rcpp::NumericVector;
 // [[Rcpp::export]]
 Rcpp::List ensm_cluster_mean(arma::mat Y,
                               const arma::mat A_block,
-                              const int L,
-                              Rcpp::List gamma_init,
+                              const int L = 10,
                               const double a1 = 1.0,
                               const double a2 = 1.0,
                               const double nu_sigma = 3,
@@ -47,6 +47,15 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
     total_ss += (T-1) * arma::var(Y.row(i));
   }
 
+  std::vector<LPPartition> particle_set(L);
+  std::vector<double> w(L);
+  for(int l = 0; l < L; l++){
+    w[l] = 1.0/( (double) L);
+    particle_set[l] = new Partition();
+  }
+  initialize_particle_set(particle_set, L, ybar, total_ss, T, A_block, rho, a1, a2, eta, nu_sigma, lambda_sigma);
+  
+  /*
   LPPartition gamma_0 = new Partition(n, gamma_init, ybar, T, A_block, rho, a1, a2, eta);
   if(verbose == true) Rcpp::Rcout << "Created gamma_0" << endl;
   
@@ -60,7 +69,7 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   
   
   if(verbose == true) Rcpp::Rcout << "Initialized the particle set" << endl;
-  
+  */
   // now that we are tracking the trajectory, we no longer need this
   /*
   std::vector<std::vector<int> > init_particle_map;
@@ -83,13 +92,13 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   */
   
   // for the main loop we need the following quantitites
-  LPPartition spec_split_candidate = new Partition(gamma_0); // for the spectral splits
-  LPPartition tail_split_candidate = new Partition(gamma_0); // for the tail splits
-  LPPartition km_split_candidate = new Partition(gamma_0); // for km splits
-  LPPartition merge_candidate = new Partition(gamma_0); // for the merge candidates
-  LPPartition border_candidate = new Partition(gamma_0); // for the border moves
-  LPPartition island_candidate = new Partition(gamma_0); // for the island candidates
-  LPPartition local_candidate = new Partition(gamma_0); // for local candidate
+  LPPartition spec_split_candidate = new Partition(); // for the spectral splits
+  LPPartition tail_split_candidate = new Partition(); // for the tail splits
+  LPPartition km_split_candidate = new Partition(); // for km splits
+  LPPartition merge_candidate = new Partition(); // for the merge candidates
+  LPPartition border_candidate = new Partition(); // for the border moves
+  LPPartition island_candidate = new Partition(); // for the island candidates
+  LPPartition local_candidate = new Partition(); // for local candidate
   
   split_info spec_si; // holds the information for spectral splits
   split_info tail_si; // holds the information for the tail splits
@@ -125,7 +134,6 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
   double old_objective = 0.0;
   double objective = 0.0;
   objective = lambda * Entropy(0, particle_set[0], particle_set, w);
-  //for(int l = 0; l < L; l++) objective += w[l] * total_log_post(particle_set[l], nu_sigma, lambda_sigma);
   for(int l = 0; l < L; l++) objective += w[l] * total_log_post(particle_set[l], total_ss, T, nu_sigma, lambda_sigma);
   
   // Prepare containers to track the trajectories of the particle system

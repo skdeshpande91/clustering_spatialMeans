@@ -1,3 +1,4 @@
+# Test the new ensm_cluster_mean
 setwd("~/Documents/clustering_spatialMeans/")
 library(Rcpp)
 library(RcppArmadillo)
@@ -26,9 +27,5 @@ Y <- matrix(nrow = N, ncol = T)
 
 for(i in 1:N) Y[i,] <- rnorm(T, mean = alpha[i, r + (batch-1)*batch_size], sd = 1)
 
-ybar <- rowMeans(Y)
-
-sourceCpp("src/test_init_particles.cpp")
-
-test <- test_init_particles(Y, W, L = 8)
-  
+sourceCpp("src/ensm_cluster_mean.cpp")
+lam_1 <- ensm_cluster_mean(Y = Y, A_block = W, L = 10, rho = 0.9)
