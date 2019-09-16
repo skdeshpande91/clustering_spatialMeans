@@ -5,8 +5,8 @@
 //  Created by Sameer Deshpande on 10/29/18.
 //
 
-#ifndef various_functions_h
-#define various_functions_h
+#ifndef GUARD_VARIOUS_FUNCTIONS_H
+#define GUARD_VARIOUS_FUNCTIONS_H
 #include <RcppArmadillo.h>
 
 #include <stdio.h>

@@ -4,6 +4,10 @@
  *  Created on: 20 October 2018
  *      Author: Sameer
  */
+
+
+#ifndef GUARD_PARTITION_FUNCTIONS_H
+#define GUARD_PARTITION_FUNCTIONS_H
 #include <RcppArmadillo.h>
 #include <vector>
 
@@ -77,5 +81,5 @@ bool sanity_check(LPPartition partition);
 void get_subcluster_neighbor(std::vector<std::vector<int> > &init_new_clusters, std::vector<std::vector<int> > &new_clusters, std::vector<int> &kstar, const int split_k, LPPartition gamma_l, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2);
 
 void format_particle_set(std::vector<LPPartition> particle_set, Rcpp::List &output_list);
-
+#endif
 

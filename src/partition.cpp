@@ -1,6 +1,6 @@
 //
 //  partition.cpp
-//  
+//
 //
 //  Created by Sameer Deshpande on 10/29/18.
 //
@@ -59,7 +59,7 @@ Partition::Partition(LPPartition initial_partition)
   alpha_hat = std::vector<double>(nObs,0.0);
   alpha_bar = std::vector<double>(K,0.0);
   //Rcpp::Rcout << "Created containers of right size" << endl;
-
+  
   // update all of the attributes
   for(int k = 0; k < K; k++){
     cluster_config[k] = initial_partition->cluster_config[k];
@@ -76,7 +76,7 @@ Partition::Partition(LPPartition initial_partition)
     
     //Rcpp::Rcout << "Successfully wrote log_like" << endl;
     log_prior[k] = initial_partition->log_prior[k];
-   // Rcpp::Rcout << "Successfully wrote log_prior" << endl;
+    // Rcpp::Rcout << "Successfully wrote log_prior" << endl;
     alpha_bar[k] = initial_partition->alpha_bar[k];
     //Rcpp::Rcout << "Successfull wrote alpha_bar" << endl;
   }
@@ -123,7 +123,7 @@ Partition::Partition(int n, Rcpp::List gamma_init, const arma::vec &ybar, const 
     get_Omega(k, ybar, T, A_block, rho, a1, a2);
     alpha_postmean(k, ybar, T, A_block, rho, a1, a2);
     log_pi_ep(k, eta);
-
+    
   }
   // also run get_pairwise
   get_pairwise();
@@ -258,6 +258,8 @@ void Partition::Copy_Partition(LPPartition initial_partition){
   cluster_assignment.clear();
   cluster_assignment.resize(nObs, 0);
   
+  pairwise_assignment.resize(nObs, nObs);
+  
   alpha_hat.clear();
   alpha_hat.resize(nObs,0.0);
   
@@ -270,8 +272,8 @@ void Partition::Copy_Partition(LPPartition initial_partition){
   log_det_Omegay.resize(K);
   y_Omegay_y.clear();
   y_Omegay_y.resize(K);
-
-
+  
+  
   log_prior.clear();
   log_prior.resize(K,0.0);
   alpha_bar.clear();
@@ -299,7 +301,7 @@ void Partition::Copy_Partition(LPPartition initial_partition){
       pairwise_assignment(j,i) = initial_partition->pairwise_assignment(j,i);
     }
   }
-
+  
 }
 
 
@@ -410,18 +412,18 @@ void Partition::alpha_postmean(int cluster_id, const arma::vec &ybar, const int 
     alpha_bar[cluster_id] = (1.0/a1) * (1.0 - rho) * tmp_alpha_sum/(1.0/a2 + n_k * (1.0 - rho)/a1);
     
     /*
-    arma::mat V_inv = 1.0/a1 * Omega_alpha;
-    V_inv -= 1.0/(a1 * a1) * (1 - rho) * (1 - rho)/(1 + 1.0/a1 * a2 * n_k * (1 - rho));
-    V_inv.diag()+=T;
-    arma::mat V = inv_sympd(V_inv);
-    arma::vec tmp_alpha = ( (double) T)* V * y_vec;
-    double tmp_alpha_sum = 0.0;
-    for(int i = 0; i < n_k; i++){
-      alpha_hat[clusters[cluster_id][i]] = tmp_alpha(i);
-      tmp_alpha_sum += tmp_alpha(i);
-    }
-    alpha_bar[cluster_id] = (1.0/a1 * tmp_alpha_sum * (1 - rho))/(1.0/a2 + n_k * (1-rho)/a1);
-    */
+     arma::mat V_inv = 1.0/a1 * Omega_alpha;
+     V_inv -= 1.0/(a1 * a1) * (1 - rho) * (1 - rho)/(1 + 1.0/a1 * a2 * n_k * (1 - rho));
+     V_inv.diag()+=T;
+     arma::mat V = inv_sympd(V_inv);
+     arma::vec tmp_alpha = ( (double) T)* V * y_vec;
+     double tmp_alpha_sum = 0.0;
+     for(int i = 0; i < n_k; i++){
+     alpha_hat[clusters[cluster_id][i]] = tmp_alpha(i);
+     tmp_alpha_sum += tmp_alpha(i);
+     }
+     alpha_bar[cluster_id] = (1.0/a1 * tmp_alpha_sum * (1 - rho))/(1.0/a2 + n_k * (1-rho)/a1);
+     */
   }
 }
 
@@ -646,7 +648,7 @@ void Partition::Merge(int k_1, int k_2, const arma::vec &ybar, const int T, cons
       log_prior[k-1] = orig_log_prior[k];
       alpha_bar[k-1] = orig_alpha_bar[k];
     }
-
+    
   }
   get_pairwise();
 }
@@ -710,23 +712,23 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
     
     
     // some print statements here to check our progress
-/*
-    Rcpp::Rcout << "remain_ix = " << remain_ix << endl;
-    Rcpp::Rcout << "num unique k_star = " << unik_k_star.size() << endl;
-    for(int u_ix = 0; u_ix < unik_k_star.size(); u_ix++){
-      Rcpp::Rcout << "new_clusters being added to cluster labelled " << unik_k_star[u_ix] << " : " ;
-      for(int nc_ix = 0; nc_ix < unik_k_star_map[u_ix].size(); nc_ix++){
-        Rcpp::Rcout << unik_k_star_map[u_ix][nc_ix] << " ";
-      }
-      Rcpp::Rcout << endl;
-    }
-    Rcpp::Rcout << "n_trailing = "<< n_trailing << endl;
-    Rcpp::Rcout << "Existing clusters that are unchanged: " ;
-    for(int kk = 0; kk < orig_K; kk ++){
-      if(unchanged_k[kk] == 1) Rcpp::Rcout << kk << " ";
-    }
-    Rcpp::Rcout << endl;
-*/
+    /*
+     Rcpp::Rcout << "remain_ix = " << remain_ix << endl;
+     Rcpp::Rcout << "num unique k_star = " << unik_k_star.size() << endl;
+     for(int u_ix = 0; u_ix < unik_k_star.size(); u_ix++){
+     Rcpp::Rcout << "new_clusters being added to cluster labelled " << unik_k_star[u_ix] << " : " ;
+     for(int nc_ix = 0; nc_ix < unik_k_star_map[u_ix].size(); nc_ix++){
+     Rcpp::Rcout << unik_k_star_map[u_ix][nc_ix] << " ";
+     }
+     Rcpp::Rcout << endl;
+     }
+     Rcpp::Rcout << "n_trailing = "<< n_trailing << endl;
+     Rcpp::Rcout << "Existing clusters that are unchanged: " ;
+     for(int kk = 0; kk < orig_K; kk ++){
+     if(unchanged_k[kk] == 1) Rcpp::Rcout << kk << " ";
+     }
+     Rcpp::Rcout << endl;
+     */
     // Now ready to perform the merges //
     // first create copies
     std::vector<int> orig_cluster_config(orig_K,0);
@@ -759,11 +761,11 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
     //Rcpp::Rcout << "[Split_Merge]: Made copies of original attributes" << endl;
     // clearing all of the vectors here would be a good idea probably
     
-
+    
     if(remain_ix != -1){ // one of the new clusters will remain labelled split_k
       // Re-initialize all of the attributes //
       //Rcpp::Rcout << "[Split_Merge]: remain_ix != -1. One new cluster will remain labelled split_k" << endl;
-
+      
       K = orig_K + n_trailing;
       cluster_config.clear();
       cluster_config.resize(K, 0);
@@ -787,7 +789,7 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
       alpha_bar.resize(K,0.0);
       // update all of the unchanged clusters //
       //Rcpp::Rcout << "    Updating unchanged clusters: " ;
-
+      
       for(int kk = 0; kk < orig_K; kk++){
         if(unchanged_k[kk] == 1){
           //Rcpp::Rcout << kk << " " ;
@@ -808,7 +810,7 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
       } // closes loop that updates the unchanged clusters
       //Rcpp::Rcout << endl;
       // now update split_k //
-
+      
       cluster_config[split_k] = new_clusters[remain_ix].size(); // remember remain_ix is the index of the new cluster that remains at k-1
       clusters[split_k].resize(cluster_config[split_k]);
       for(int i = 0; i < new_clusters[remain_ix].size(); i++){
@@ -820,7 +822,7 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
       log_pi_ep(split_k, eta);
       alpha_postmean(split_k, ybar, T, A_block, rho, a1, a2);
       //Rcpp::Rcout << "    Updating cluster originally labelled split_k" << endl;
-
+      
       // now go through unik_k_star's and update these //
       for(int u_ix = 0; u_ix < unik_k_star.size(); u_ix++){ // loop over the indices of the unique k-star's
         k = unik_k_star[u_ix];
@@ -878,10 +880,10 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
         } // closes if/else checking whether unik_k_star[u_ix] == -1 (i.e. make the trailing clusters) or not
       } // closes loop over the unik_k_stars (i.e. the labels of the original clusters that are changed by this Split/Merge
       //Rcpp::Rcout << "    Updated the clusters changed by the Split_Merge" << endl;
-
+      
     } else{ // all new clusters will be merged to an existing cluster
       //Rcpp::Rcout << "[Split_Merge]: remain_ix == -1." << endl;
-
+      
       K = orig_K - 1;
       // re-initialize all of the attributes //
       cluster_config.clear();
@@ -938,13 +940,13 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
             // the outer loop hasn't hit kk yet, and cluster_config[kk]
             // confirmation: when I tried running it again, I noticed that the loop never entered i.
             /*
-            for(int i = 0; i < cluster_config[kk]; i++){
-              Rcpp::Rcout << "        i = " << i << endl;
-              clusters[kk-1][i] = orig_clusters[kk][i];
-              cluster_assignment[clusters[kk-1][i]] = kk-1;
-              alpha_hat[clusters[kk-1][i]] = orig_alpha_hat[clusters[kk-1][i]];
-            }
-            */
+             for(int i = 0; i < cluster_config[kk]; i++){
+             Rcpp::Rcout << "        i = " << i << endl;
+             clusters[kk-1][i] = orig_clusters[kk][i];
+             cluster_assignment[clusters[kk-1][i]] = kk-1;
+             alpha_hat[clusters[kk-1][i]] = orig_alpha_hat[clusters[kk-1][i]];
+             }
+             */
             for(int i = 0; i < cluster_config[kk-1];i++){
               clusters[kk-1][i] = orig_clusters[kk][i];
               cluster_assignment[clusters[kk-1][i]] = kk-1;
@@ -960,7 +962,7 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
         } // closes if statement checking whether cluster labelled kk is being modified
       } // closes loop over the cluster labels. only the unchanged ones have been copied
       //Rcpp::Rcout << "    Updating clusters changed by Split_Merge" << endl;
-
+      
       for(int u_ix = 0; u_ix < unik_k_star.size(); u_ix++){
         k = unik_k_star[u_ix];
         
@@ -1035,8 +1037,8 @@ void Partition::Split_Merge(int split_k, std::vector<std::vector<int> > &new_clu
     
     // need to update the pairwise_allocation matrix!
     get_pairwise();
-
-
+    
+    
   } // closes if/else checking whether new_clusters and k_star have the same size
 }
 

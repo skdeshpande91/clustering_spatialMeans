@@ -6,8 +6,8 @@
 //
 // This corresponds to a single sigma^2
 
-#ifndef PARTITION_H_
-#define PARTITION_H_
+#ifndef GUARD_PARTITION_H_
+#define GUARD_PARTITION_H_
 
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -54,18 +54,16 @@ public:
   Partition(LPPartition initial_partition);
   Partition(int n, Rcpp::List gamma_init, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double eta);
   Partition(int n, std::vector<std::vector<int> > init_clusters, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double eta);
+  
   ~Partition(); // destructor
 public:
   void Print_Partition(const double total_ss, const int T, double nu_sigma, double lambda_sigma);
   void Copy_Partition(LPPartition initial_partition); // overwrite attributes with the ones from initial_partition
 public:
   void get_pairwise();
-  //void log_likelihood(int cluster_id, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a);
   void get_Omega(int cluster_id, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2);
   void log_pi_ep(int cluster_id, const double eta);
   void alpha_postmean(int cluster_id, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2);
-  
-  
   void Split(int split_k, std::vector<std::vector<int> > &new_clusters, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double eta);
   //void Modify(int cluster_id, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a, const double eta);
   void Merge(int k_1, int k_2, const arma::vec &ybar, const int T, const arma::mat &A_block, const double rho, const double a1, const double a2, const double eta);
