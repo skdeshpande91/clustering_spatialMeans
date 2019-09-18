@@ -6,3 +6,4 @@ data/*.RData
 images/*.png
 images/
 src/*.o
+*.RData

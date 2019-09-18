@@ -12,6 +12,7 @@
 #include "partition.h"
 #include "partition_functions.h"
 #include "initialize_particle_set.h"
+#include "rng.h"
 #include <vector>
 #include <ctime>
 
@@ -19,6 +20,7 @@
 // [[Rcpp::export]]
 Rcpp::List test_init_particles(arma::mat Y,
                                const arma::mat A_block,
+                               const int init_id = 0,
                                const int L = 10,
                                const double a1 = 1.0,
                                const double a2 = 1.0,
@@ -29,6 +31,10 @@ Rcpp::List test_init_particles(arma::mat Y,
                                const int max_iter = 10, const double eps = 1e-3,
                                bool verbose = false)
 {
+  
+  
+  Rcpp::RNGScope scope;
+  RNG gen;
   int n = Y.n_rows;
   int T = Y.n_cols;
   
@@ -45,7 +51,7 @@ Rcpp::List test_init_particles(arma::mat Y,
   
   Rcpp::Rcout << "About to start initialize_particle_set" << std::endl;
   for(int l = 0; l < L; l++) particle_set[l] = new Partition();
-  initialize_particle_set(particle_set, L, ybar, total_ss, T, A_block, rho,  a1, a2, eta, nu_sigma, lambda_sigma);
+  initialize_particle_set(particle_set, L, ybar, total_ss, T, A_block, rho,  a1, a2, eta, nu_sigma, lambda_sigma, init_id, gen);
   
   // Find the unique particles
   std::vector<std::vector<int> > particle_map;

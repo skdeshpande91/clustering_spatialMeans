@@ -11,6 +11,7 @@
 #include "partition.h"
 #include "partition_functions.h"
 #include "initialize_particle_set.h"
+#include "rng.h"
 #include <vector>
 #include <ctime>
 
@@ -24,19 +25,21 @@ using Rcpp::NumericVector;
 
 // [[Rcpp::export]]
 Rcpp::List ensm_cluster_mean(arma::mat Y,
-                              const arma::mat A_block,
-                              const int L = 10,
-                              const double a1 = 1.0,
-                              const double a2 = 1.0,
-                              const double nu_sigma = 3,
-                              const double lambda_sigma = 1,
-                              const double rho = 0.99,
-                              const double lambda = 1.0, const double eta = 1.0,
-                              const int max_iter = 10, const double eps = 1e-3,
-                              const double split_frac = 0.1,
-                             bool verbose = false)
+                            const arma::mat A_block,
+                            const int init_id = 0,
+                            const int L = 10,
+                            const double a1 = 1.0,
+                            const double a2 = 1.0,
+                            const double nu_sigma = 3,
+                            const double lambda_sigma = 1,
+                            const double rho = 0.99,
+                            const double lambda = 1.0, const double eta = 1.0,
+                            const int max_iter = 10, const double eps = 1e-3,
+                            const double split_frac = 0.1,
+                            bool verbose = false)
 {
-  
+  Rcpp::RNGScope scope;
+  RNG gen;
   int n = Y.n_rows;
   int T = Y.n_cols;
   
@@ -53,7 +56,9 @@ Rcpp::List ensm_cluster_mean(arma::mat Y,
     w[l] = 1.0/( (double) L);
     particle_set[l] = new Partition();
   }
-  initialize_particle_set(particle_set, L, ybar, total_ss, T, A_block, rho, a1, a2, eta, nu_sigma, lambda_sigma);
+  initialize_particle_set(particle_set, L, ybar, total_ss, T, A_block, rho, a1, a2, eta, nu_sigma, lambda_sigma, init_id, gen);
+  
+  particle_set[0]->Print_Partition(total_ss, T, nu_sigma, lambda_sigma);
   
   /*
   LPPartition gamma_0 = new Partition(n, gamma_init, ybar, T, A_block, rho, a1, a2, eta);

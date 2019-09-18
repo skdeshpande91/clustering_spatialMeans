@@ -4,8 +4,9 @@ library(RcppArmadillo)
 
 
 
+
 source("~/Dropbox/Particle EM Spatial Clustering/sameer_sim/spring2019/june5/scripts/partition_functions.R")
-#source("~/Dropbox/Particle EM Spatial Clustering/sameer_sim/spring2019/june5/scripts/plot_partition.R")
+source("~/Dropbox/Particle EM Spatial Clustering/sameer_sim/spring2019/june5/scripts/plot_partition.R")
 source("~/Dropbox/Particle EM Spatial Clustering/sameer_sim/spring2019/june5/scripts/get_hyper_parameters.R")
 
 
@@ -30,5 +31,6 @@ ybar <- rowMeans(Y)
 
 sourceCpp("src/test_init_particles.cpp")
 
-test <- test_init_particles(Y, W, L = 8)
+
+test <- test_init_particles(Y, W, L = 8, init_id = 2)
   
