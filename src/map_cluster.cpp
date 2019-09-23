@@ -11,6 +11,8 @@
 
 #include "partition.h"
 #include "partition_functions.h"
+#include "initialize_particle_set.h"
+#include "rng.h"
 #include <vector>
 #include <ctime>
 
@@ -19,7 +21,6 @@ using namespace std;
 // [[Rcpp::export]]
 Rcpp::List map_partition(arma::mat Y,
                          const arma::mat A_block,
-                         Rcpp::List gamma_init,
                          const double a1 = 1.0,
                          const double a2 = 1.0,
                          const double nu_sigma = 3,
@@ -30,6 +31,8 @@ Rcpp::List map_partition(arma::mat Y,
                          const double split_frac = 0.1,
                          bool verbose = false)
 {
+  Rcpp::RNGScope scope;
+  RNG gen;
   int n = Y.n_rows;
   int T = Y.n_cols;
   
@@ -39,8 +42,10 @@ Rcpp::List map_partition(arma::mat Y,
     ybar(i) = arma::mean(Y.row(i));
     total_ss += (T-1) * arma::var(Y.row(i));
   }
+  LPPartition gamma_0 = new Partition();
+  initialize_particle(gamma_0, ybar, total_ss, T, A_block, rho, a1, a2, eta, nu_sigma, lambda_sigma, gen);
+  
   if(verbose == true) Rcpp::Rcout << "n = " << n << endl;
-  LPPartition gamma_0 = new Partition(n, gamma_init, ybar, T, A_block, rho, a1, a2, eta);
   if(verbose == true) Rcpp::Rcout << "Created gamma_0" << endl;
   
   // for the main loop, we need the following quantities
