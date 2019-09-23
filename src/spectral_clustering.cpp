@@ -1,8 +1,8 @@
 //
-//  kmeans.cpp
+//  spectral_clustering.cpp
 //  
 //
-//  Created by Sameer Deshpande on 8/17/19.
+//  Created by Sameer Deshpande on 9/23/19.
 //
 
 #include <stdio.h>
@@ -15,27 +15,18 @@
 #include <vector>
 #include <ctime>
 
-using namespace arma;
-using namespace std;
-
-
-using Rcpp::List;
-using Rcpp::Rcout;
-using Rcpp::NumericVector;
-
 // [[Rcpp::export]]
-Rcpp::List kmeans_particle(arma::mat Y,
-                  const arma::mat A_block,
-                  Rcpp::List gamma_init,
-                  const int max_splits = 5,
-                  const double a1 = 1.0,
-                  const double a2 = 1.0,
-                  const double nu_sigma = 3,
-                  const double lambda_sigma = 1,
-                  const double rho = 0.99,
-                  const double eta = 1.0)
+Rcpp::List spectral_particle(arma::mat Y,
+                           const arma::mat A_block,
+                           Rcpp::List gamma_init,
+                           const int max_splits = 5,
+                           const double a1 = 1.0,
+                           const double a2 = 1.0,
+                           const double nu_sigma = 3,
+                           const double lambda_sigma = 1,
+                           const double rho = 0.99,
+                           const double eta = 1.0)
 {
-  
   int n = Y.n_rows;
   int T = Y.n_cols;
   
@@ -56,24 +47,33 @@ Rcpp::List kmeans_particle(arma::mat Y,
     particle_set[l] = new Partition(gamma_0);
   }
   
-  
-  // we will run k-means for K = 1, ..., 10
   int split_k = 0; // we will only ever start with gamma_init being the partition with a single cluster
   int n_k = 1;
   
-  arma::mat U = arma::zeros<arma::mat>(n_k,1); // holds the data passed to kmeans_repeat
-  arma::mat means = arma::zeros<arma::mat>(1,max_splits); // holds the means returned by kmeans_repeat
-  double min_score = 0.0; // holds sum-of-squared distances from observations to cluster means
-  bool status = true; // tells us whether k-means was successful
+  // initialize all of the stuff for spectral clustering here
+  arma::mat A_block_k = arma::zeros<mat>(n_k, n_k);
+  arma::vec alpha_hat_cluster = arma::zeros<vec>(n_k);
+  arma::mat alpha_sim = arma::zeros<mat>(n_k,n_k);
+  arma::mat I_k = arma::zeros<mat>(n_k,n_k);
+  I_k.eye();
+  arma::mat alpha_dist = arma::zeros<mat>(n_k,n_k);
+  arma::mat W_alpha_cl = arma::zeros<mat>(n_k,n_k);
+  arma::mat Dinv_sqrt = arma::zeros<mat>(n_k,n_k);
+  arma::mat L = arma::zeros<mat>(n_k,n_k);
+  arma::mat eigvec = arma::zeros<mat>(n_k,n_k); // holds the eigenvectors of L
+  arma::vec eigval = arma::zeros<vec>(n_k); // holds the eigenvalues of L
+  arma::mat U = arma::zeros<mat>(n_k,2); // will hold the first several eigenvalues of L
+  arma::mat means = arma::zeros<mat>(n_k,2); // the cluster means passed to kmeans
+  double min_score = 0.0; // used with kmeans_repeat
+  bool status = true; // tells us that kmeans was successful
   
-  arma::vec cluster_dist = arma::zeros<arma::vec>(max_splits); // holds distance from single observaiton to each cluster mean
-  arma::uvec cluster_dist_indices(max_splits); // used to sort cluster_dist
-
-  std::vector<std::vector<int> > init_new_clusters; // stores output of k-means. NOTE: these clusters may not be connected.
-  arma::mat A_tmp = arma::zeros<arma::mat>(n_k,n_k); // store submatrices of A_block. used to determine connected components
-  std::vector<std::vector<int> > connected_components; // connected components of the individual sub clusters found by k-means
-
-  std::vector<std::vector<int> > tmp_new_clusters; // used for figuring out the connected components of the new clusters
+  arma::vec cluster_dist = arma::zeros<vec>(1); // holds distance to cluster means
+  arma::uvec cluster_dist_indices(1); // used to sort cluster_dist
+  
+  std::vector<std::vector<int> > init_new_clusters; // stores output of kmeans. NOTE: these clusters may not be connected
+  arma::mat A_tmp = arma::zeros<arma::mat>(n_k,n_k);// stores submatrix of A_block, used to determine connected components
+  std::vector<std::vector<int> > connected_components; // connected components of individual sub-clusters discovered
+  std::vector<std::vector<int> > tmp_new_clusters;// used for figuring out the connected components of new clusters
   std::vector<std::vector<int> > new_clusters; // holds the final new clusters
   std::vector<int> k_star; // actual nearest neighbors of newly formed clusters
   
@@ -81,31 +81,67 @@ Rcpp::List kmeans_particle(arma::mat Y,
   
   time_t tp;
   int time1 = time(&tp);
-  
+  Rcpp::Rcout << "about to start loop" << std::endl;
   for(int num_splits = 1; num_splits <= max_splits; num_splits++){
+    Rcpp::Rcout << "num_splits = " << num_splits << std::endl;
     if(num_splits > 1){
-      n_k = gamma_0->cluster_config[split_k];
-      U.set_size(n_k,1);
-      means.set_size(1, num_splits);
-      min_score = 0.0;
+      // re-size everything
+      n_k = gamma_0->cluster_config[0];
+      Rcpp::Rcout << "  n_k = " << n_k << std::endl;
+      A_block_k.set_size(n_k, n_k);
+      alpha_hat_cluster.set_size(n_k);
+      alpha_sim.set_size(n_k,n_k);
+      I_k.set_size(n_k,n_k);
+      I_k.eye();
+      alpha_dist.set_size(n_k,n_k);
+      W_alpha_cl.set_size(n_k,n_k);
+      Dinv_sqrt.set_size(n_k,n_k);
+      L.set_size(n_k,n_k);
+      eigvec.set_size(n_k,n_k);
+      eigval.set_size(n_k);
+      U.set_size(n_k,num_splits);
+      means.set_size(num_splits,num_splits);
       status = true;
+      min_score = 0.0;
       cluster_dist.set_size(num_splits);
       cluster_dist_indices.set_size(num_splits);
       
-      for(int ii = 0; ii < n_k; ii++) U(ii,0) = ybar(gamma_0->clusters[split_k][ii]); // remember this indexing in U
+      // Spectral Clustering Begins //
+      A_block_k = Submatrix(A_block, n_k, n_k, gamma_0->clusters[split_k], gamma_0->clusters[split_k]);
+      for(int i = 0; i  < n_k; i++){
+        alpha_hat_cluster(i) = gamma_0->alpha_hat[gamma_0->clusters[split_k][i]];
+      }
+      alpha_dist = Distance_matrix(alpha_hat_cluster,n_k); // distance matrix
+      alpha_sim = exp(-1.0 * square(alpha_dist)/(2 * arma::var(alpha_hat_cluster))); // similarity matrix
+      W_alpha_cl = I_k + alpha_sim % A_block_k; // ensure non-adjacent indices have 0 similarity
+      Dinv_sqrt = arma::diagmat(1/sqrt(arma::sum(W_alpha_cl,1)));
+      L = I_k - Dinv_sqrt * W_alpha_cl * Dinv_sqrt;
+      arma::eig_sym(eigval, eigvec, L);
+      U = eigvec.cols(0,num_splits-1);
+      U = arma::diagmat(1/sqrt(arma::sum(arma::square(U),1))) * U;
+      Rcpp::Rcout << "About to run k-means" << std::endl;
       
+      
+      // now run kmeans_repeat
       kmeans_repeat(U, means, status, min_score, num_splits, 5000);
-      if(status == true){
+      if(status == false){
+        Rcpp::Rcout << "kmeans failed!" << std::endl;
+      } else{
         init_new_clusters.clear();
         init_new_clusters.resize(num_splits);
-        for(int ii = 0; ii < n_k; ii++){
-          cluster_dist.zeros();
-          for(int new_k = 0; new_k < num_splits; new_k++) cluster_dist(new_k) = arma::norm(U.row(ii).t() - means.col(new_k));
-          cluster_dist_indices = arma::sort_index(cluster_dist, "ascend");
-          init_new_clusters[cluster_dist_indices(0)].push_back(gamma_0->clusters[split_k][ii]);
-        }
         
-        // Rcpp::Rcout << "k = " << num_splits << " tot.withinss = " << min_score << std::endl;
+        for(int i = 0; i < n_k; i++){
+          cluster_dist.zeros();
+          for(int new_k = 0; new_k < num_splits; new_k++){
+            cluster_dist(new_k) = arma::norm(U.row(i).t() - means.col(new_k));
+          } // closes loop computing distance of U.row(i) to centroid new_k
+          cluster_dist_indices = arma::sort_index(cluster_dist, "ascend");
+          init_new_clusters[cluster_dist_indices(0)].push_back(gamma_0->clusters[split_k][i]);
+        } // closes loop over rows of U
+        Rcpp::Rcout << "Got init_new_clusters. There are " << init_new_clusters.size() << "initial clusters of size: ";
+        for(int kk = 0; kk < init_new_clusters.size(); kk++) Rcpp::Rcout << " " << init_new_clusters[kk].size();
+        Rcpp::Rcout << std::endl;
+        
 
         
         tmp_new_clusters.clear();
@@ -117,15 +153,20 @@ Rcpp::List kmeans_particle(arma::mat Y,
             tmp_new_clusters.push_back(connected_components[new_k]);
           }
         }
-
+        
+        Rcpp::Rcout << "got tmp_new_clusters of size:";
+        for(int nc_ix = 0; nc_ix < tmp_new_clusters.size(); nc_ix++) Rcpp::Rcout << " "<<  tmp_new_clusters[nc_ix].size();
+        Rcpp::Rcout << std::endl;
         
         new_clusters.clear();
         new_clusters.resize(tmp_new_clusters.size());
+        Rcpp::Rcout << new_clusters.size() << std::endl;
         for(int nc_ix = 0; nc_ix < new_clusters.size(); nc_ix++){
           for(int ii = 0; ii < tmp_new_clusters[nc_ix].size(); ii++){
             new_clusters[nc_ix].push_back(tmp_new_clusters[nc_ix][ii]);
           }
         }
+        
         delete gamma_new;
         gamma_new = new Partition(n, init_new_clusters, ybar, T, A_block, rho, a1, a2, eta);
         init_particle_set[l]->Copy_Partition(gamma_new);
@@ -134,17 +175,8 @@ Rcpp::List kmeans_particle(arma::mat Y,
         gamma_new = new Partition(n, new_clusters, ybar, T, A_block, rho, a1, a2, eta);
         particle_set[l]->Copy_Partition(gamma_new);
         l++;
-        
-        
-        
-        
-        
-        
-        //Rcpp::Rcout << std::endl;
-      } // closes if checking that kmean_repeat exited successfully
+      } // closes if checking that kmeans ran successfully
     } else{
-      //Rcpp::Rcout << "k = " << num_splits << " tot.withinss = " << (n - 1) * arma::var(ybar) << std::endl;
-      
       delete gamma_new;
       gamma_new = new Partition(gamma_0);
       init_particle_set[l]->Copy_Partition(gamma_new);
@@ -156,7 +188,6 @@ Rcpp::List kmeans_particle(arma::mat Y,
     } // closes if/else checking whether num_splits == 1
   } // closes loop over num_splits
   int time2 = time(&tp);
-  
   Rcpp::List init_unik_particles_out;
   format_particle_set(init_particle_set, init_unik_particles_out);
   arma::mat init_alpha_hat_particle = arma::zeros<mat>(n, init_particle_set.size());
@@ -165,7 +196,7 @@ Rcpp::List kmeans_particle(arma::mat Y,
       init_alpha_hat_particle(i,l) = init_particle_set[l]->alpha_hat[i];
     }
   }
-  
+
   Rcpp::List unik_particles_out;
   std::vector<double> log_like(particle_set.size());
   std::vector<double> log_prior(particle_set.size());
@@ -180,10 +211,9 @@ Rcpp::List kmeans_particle(arma::mat Y,
     log_prior[l] = total_log_prior(particle_set[l]);
     log_post[l] = total_log_post(particle_set[l], total_ss, T, nu_sigma, lambda_sigma);
   }
-  
 
   Rcpp::List results;
-  results["Y"] = Y;
+  //results["Y"] = Y;
   results["particles"] = unik_particles_out;
   results["alpha"] = alpha_hat_particle;
   results["log_like"] = log_like;
@@ -193,7 +223,4 @@ Rcpp::List kmeans_particle(arma::mat Y,
   results["init_alpha_hat_particle"] = init_alpha_hat_particle;
   results["time"] = time2 - time1;
   return(results);
-  
-  
-  
 }

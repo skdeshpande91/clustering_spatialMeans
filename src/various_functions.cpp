@@ -15,6 +15,7 @@ arma::mat Submatrix(arma::mat M, int n_row, int n_col, std::vector<int> row_inde
   for(int i = 0; i < n_row; i++){
     for(int j = 0; j < n_col; j++){
       //Rcpp::Rcout << row_index[i] << "," << col_index[j] << arma::endl;
+      //if( (row_index[i] > M.n_rows) || (col_index[j] > M.n_rows)) Rcpp::Rcout << row_index[i] << "," << col_index[j] << arma::endl;
       N(i,j) = M(row_index[i], col_index[j]);
     }
   }
